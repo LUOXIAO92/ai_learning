@@ -249,7 +249,7 @@ Q_\pi(h,a) &= \int do' ~ \mu(o' | h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') 
 \end{align}
 ```
 
-### 1.5 決定論 vs ランダム分布
+### 1.5 決定論 vs 確率分布
 
 General RL の場合
 - 観測 $o_{t+1}$ は決定論的に決まることがある
