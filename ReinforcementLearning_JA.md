@@ -44,13 +44,15 @@
   - $a_t\sim\pi_\theta(\cdot\mid h_t)$
   - $a_t=\pi_\theta(h_t)$
 
-#### 1.1.1 環境測度 / Measure $\mu$ の説明
+#### 1.1.1 簡単な説明例
 例: 車が迫っていく時に、歩行者の気分によって退避するか、無視するか
-  - 歩行者の気分: 隠れた変数、観測不可
+
+歩行者の気分: 隠れた変数、観測不可
   - $o_{t}$: 時刻 $t$ において、車の情報および歩行者の観測可能な情報 (進行方向、歩行速度など)
   - $a_t\sim\pi_\theta(\cdot|h_t)$: 車および履歴 ($o_{t}$が含まれる) に基づいて、車の動作を予測する
   - $o_{t+1} \sim\mu(\cdot| h_t, a_t)$: 時刻 $t+1$ における観測可能な情報を予測
-    - 従来は運動方程式などの決定論的な方法を使うらしい
+    - 従来は運動方程式などの決定論的な方法を使う
+  - $r_t = R(h_t, a_t, o_{t+1})$: 過去の履歴(経験)、新しい動作および観測を使って、奨励を評価する. 
 
 #### 1.1.2 最適化目標
 **累積報酬 (Trajectory Return)** $G_0$
@@ -67,12 +69,12 @@ h_{t+1} &= \text{concat}(h_t, [a_t, r_t, o_{t+1}])
 ```math
 \begin{align}
 \pi^* &= \underset{\pi}{\operatorname{argmax}} J(\pi) \quad \text{or} \quad \pi^*_\theta = \underset{\theta}{\operatorname{argmax}} J(\pi_\theta) \\
-J(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}} \sum_{a_1 \in \mathcal{A}} \cdots \sum_{a_T \in \mathcal{A}}  \sum_{o_{T+1} \in \mathcal{O}} \nonumber \\
+J_{o_0}(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}} \sum_{a_1 \in \mathcal{A}} \cdots \sum_{a_T \in \mathcal{A}}  \sum_{o_{T+1} \in \mathcal{O}} \nonumber \\
 &\quad \left( \prod_{t=0}^T \pi_\theta(a_t|h_t)\mu(o_{t+1}|h_t, a_t)\right) \left(\sum_{t=0}^T \gamma^t r_t \right) \\
 &\equiv \mathbb{E}_{a\sim \pi_\theta, o\sim\mu} [G_0 | o_0]
 \end{align}
 ```
-Eq(8)という形式は強化学習の定番となっているが、時間順序を省略するため良い表現ではない. また、$\mathbb{E}[\cdot|o_0]$が付いているのはは初期観測量$o_0$という条件が付いていることを意味する.
+$J_{o_0}$ の添字 $o_0$ は初期観測という初期条件が付いていることを意味する. Eq(8)という形式は強化学習の定番となっているが、時間順序を省略するため良い表現ではない. また、$\mathbb{E}[\cdot|o_0]$が付いているのはは初期観測量$o_0$という条件が付いていることを意味する.
 
 ただし、$t=k\sim L$の累計報酬の一般形式は以下となる
 ```math
@@ -108,7 +110,7 @@ r_t &= r(s_t, a_t, s_{t+1}), \\
 ```math
 \begin{align}
 \pi^* &= \underset{\pi}{\operatorname{argmax}} J(\pi) \quad \text{or} \quad \pi^*_\theta = \underset{\theta}{\operatorname{argmax}} J(\pi_\theta) \\
-J(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{t=0}^T \gamma^t r_t \right)
+J_{s_0}(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{t=0}^T \gamma^t r_t \right)
 \end{align}
 ```
 
@@ -125,11 +127,11 @@ G_1 &= r_1 + \gamma \left( \sum_{t=2}^T \gamma^{t-2} r_t \right) = r_1 + \gamma 
 \end{align}
 ```
 
-#### 1.3.1 MDP formulation RL
+#### 1.3.1 MDP formulized RL
 $t=0$に関して、$a_0, s_1$を先に積分する
 ```math
 \begin{align}
-J &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right)  \left( r_0 + \gamma G_1 \right) \nonumber \\
+J_{s_0}(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right)  \left( r_0 + \gamma G_1 \right) \nonumber \\
 &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) r(s_0, a_0, s_1) \nonumber \\
 &\quad + \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \sum_{a_1 \in \mathcal{A}} \sum_{s_2 \in \mathcal{S}} \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \gamma G_1 \nonumber \\
 &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \pi_\theta(a_0 | s_0) P(s_1 | s_0, a_0) r(s_0, a_0, s_1) \\
@@ -189,7 +191,7 @@ Q_\pi(s,a) &= \sum_{s' \in \mathcal{S}} P(s' | s, a) \left[ r(s, a, s') + \gamma
 
 ```math
 \begin{align}
-J(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}} \sum_{a_1 \in \mathcal{A}}\cdots \sum_{a_T \in \mathcal{A}} \sum_{o_{T+1} \in \mathcal{O}}  \left( \prod_{t=0}^T \pi_\theta(a_t|h_t)\mu(o_{t+1}|h_t, a_t)\right) \left(r(h_0, a_0, o_{1}) + \gamma G_1\right) \\
+J_{o_0}(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}} \sum_{a_1 \in \mathcal{A}}\cdots \sum_{a_T \in \mathcal{A}} \sum_{o_{T+1} \in \mathcal{O}}  \left( \prod_{t=0}^T \pi_\theta(a_t|h_t)\mu(o_{t+1}|h_t, a_t)\right) \left(r(h_0, a_0, o_{1}) + \gamma G_1\right) \\
 &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}}   \pi_\theta(a_0|h_0)\mu(o_{1}|h_0, a_0) r(h_0, a_0, o_{1}) \nonumber \\ 
 &\quad + \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}} \sum_{a_1 \in \mathcal{A}}\cdots \sum_{a_T \in \mathcal{A}} \sum_{o_{T+1} \in \mathcal{O}}  \left( \prod_{t=0}^T \pi_\theta(a_t|h_t)\mu(o_{t+1}|h_t, a_t)\right) \gamma G_1 \\
 &= \sum_{a_0 \in \mathcal{A}} \sum_{o_1 \in \mathcal{O}}   \pi_\theta(a_0|o_0)\mu(o_{1}|o_0, a_0) \left[ r(o_0, a_0, o_{1}) + \gamma V^{\pi_\theta}_{1}(o_0; a_0, o_1) \right] \\
@@ -220,8 +222,99 @@ V^{\pi_\theta}_{k}(h_k) &= \sum_{a_k \in \mathcal{A}} \sum_{o_{k+1} \in \mathcal
 
 ```math
 \begin{align}
-V_{\pi} (h) &= \sum_{a \in \mathcal{A}} \pi_\theta(a | h) \sum_{o' \in \mathcal{O}} P(o | h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
-Q_\pi(h,a) &= \sum_{o' \in \mathcal{O}} P(o' | o, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
+V_{\pi} (h) &= \sum_{a \in \mathcal{A}} \pi_\theta(a | h) \sum_{o' \in \mathcal{O}} \mu(o' | h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
+Q_\pi(h,a) &= \sum_{o' \in \mathcal{O}} \mu(o' | o, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
 h' &= \text{concat}[h, (a, r, o')]
 \end{align}
 ```
+
+### 1.4 積分表現
+$\sum$ を $\int$ に直すだけで良い. ただし、この場合 $\pi_\theta(a|s') P(s'|a,s), ~\pi_\theta(a|s')\mu(s'|a,s)$ が確率密度になる.
+
+**MDP formulized RL** :
+```math
+\begin{align}
+J(\pi) &= \int \left( \prod_{t=0}^T da_t ds_{t+1} ~ \pi(a_t|s_t) P(s_{t+1}|s_t, a_t)  \right) \sum_{s=0}^T \gamma^s r_s \\
+V_{\pi} (s) &= \int da ~ \pi_\theta(a | s) \int ds' ~ P(s' | s, a) \left[ r(s, a, s') + \gamma V_{\pi}(s') \right] \\
+Q_\pi(s,a) &= \int ds' ~ P(s' | s, a) \left[ r(s, a, s') + \gamma V_{\pi}(s') \right]
+\end{align}
+```
+
+**General RL** :
+```math
+\begin{align}
+J(\pi) &= \int \left( \prod_{t=0}^T da_t do_{t+1} ~ \pi(a_t|h_t) \mu(o_{t+1}|h_t, a_t)  \right) \sum_{s=0}^T \gamma^s r_s \\
+V_{\pi} (h) &= \int da ~ \pi(a | s) \int do' \mu(o'| h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
+Q_\pi(h,a) &= \int do' ~ \mu(o' | h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] \\
+\end{align}
+```
+
+### 1.5 決定論 vs ランダム分布
+
+General RL の場合
+- 観測 $o_{t+1}$ は決定論的に決まることがある
+  - 運動方程式など
+- 同様に、奨励 $r_t$ はランダムで決まることも不可ではない
+  - ゲーム内のアイテム確率的に強化など
+
+つまり、前に定義された、観測と奨励は分布 $o_{t+1}, r_t \sim \mu(o_{t+1}, r_t|a_t,h_t)$ に従うことが許される. むしろこの定義がより一般的である. そのため、累計報酬は次のように再定義することができる
+- 奨励に関する積分を追加するだけ
+
+```math
+\begin{equation}
+J(\pi) = \int \left( \prod_{t=0}^T da_t do_{t+1} dr_t ~ \pi(a_t|h_t) \mu(o_{t+1}, r_t|h_t,a_t) \right) \sum_{s=0}^T \gamma^s r_s
+\end{equation}
+```
+
+分布を決定論に直すには、まずDirac関数の積分
+```math
+\begin{equation}
+\int dx ~ \delta(x-a) f(x) = f(a)
+\end{equation}
+```
+を利用して、環境測度 $\mu$ を次のようにつくる
+```math
+\begin{equation}
+\mu(o_{t+1}, r_t | h_t, a_t) = \delta(r_t - R_t(h_t,a_t,o_{t+1})) \delta(o_{t+1}-O_t(h_t, a_t))
+\end{equation}
+```
+$R_t, O_t$ はそれぞれ時刻 $t$ における奨励と観測の決定論的な方程式. 特別な決まりがなければ、$\forall t, R_t\equiv R, O_t\equiv O$ とおく.
+
+```math
+\begin{align}
+J(\pi) &= \int \left( \prod_{t=0}^T da_t do_{t+1} dr_t ~ \pi(a_t|h_t) \delta(r_t - R_t(h_t,a_t,o_{t+1})) \delta(o_{t+1}-O(h_t,a_t)) \right) \sum_{s=0}^T \gamma^s r_s \nonumber \\
+&= \int \left( \prod_{t=0}^T da_t ~ \pi(a_t|h_t)\right) \sum_{s=0}^T \gamma^s R\left(h_s, a_s, O(h_s, a_s) \right)
+\end{align}
+```
+
+
+### 1.6 環境測度の分離変数
+
+Hutterが定義された環境測度 $\mu(o_{t+1}, r_t | h_t, a_t)$ は、観測および報酬の同時分布になっている. ただし、より自然的な順序としては、
+1. 過去の履歴 $h_t$ に基づいて、新しい動作を予測 $a_t \sim \pi_\theta(\cdot | h_t)$
+2. この動作および過去の履歴で、環境と相互作用し、新しい観測を予測 $o_{t+1}\sim \mu_O(\cdot | h_t, a_t)$
+3. 最後に履歴、新しい動作および新しい観測に基づいて採点 $r_t \sim \mu_R ( \cdot | h_t, a_t, o_{t+1})$
+
+この一連の挙動を連合分布で表現すると
+
+```math
+\begin{equation}
+p(a_t, o_{t+1}, r_t | h_t) = \pi_\theta (a_t | h_t) \mu_O(o_{t+1} | h_t, a_t) \mu_R (r_t | h_t, a_t, o_{t+1})
+\end{equation}
+```
+$\mu_O, \mu_R$ の積は環境測度そのものである
+```math
+\begin{equation}
+\mu(o_{t+1}, r_t | h_t, a_t) = \mu_O(o_{t+1} | h_t, a_t) \mu_R(r_t | h_t, a_t, o_{t+1})
+\end{equation}
+```
+また、決定論的な場合は以下となる
+```math
+\begin{align}
+\mu_O(o_{t+1} | h_t, a_t) &= \delta(o_{t+1}-O_t(h_t, a_t)) \\
+\mu_R(r_t | h_t, a_t, o_{t+1}) &= \delta(r_t - R_t(h_t,a_t,o_{t+1}))
+\end{align}
+```
+
+
+# 2. 強化学習
