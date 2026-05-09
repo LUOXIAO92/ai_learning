@@ -127,7 +127,7 @@ G_1 &= r_1 + \gamma \left( \sum_{t=2}^T \gamma^{t-2} r_t \right) = r_1 + \gamma 
 \end{align}
 ```
 
-#### 1.3.1 MDP formulized RL
+#### 1.3.1 MDP formalized RL
 $t=0$に関して、$a_0, s_1$を先に積分する
 ```math
 \begin{align}
@@ -231,7 +231,7 @@ h' &= \text{concat}[h, (a, r, o')]
 ### 1.4 積分表現
 $\sum$ を $\int$ に直すだけで良い. ただし、この場合 $\pi_\theta(a|s') P(s'|a,s), ~\pi_\theta(a|s')\mu(s'|a,s)$ が確率密度になる.
 
-**MDP formulized RL** :
+**MDP formalized RL** :
 ```math
 \begin{align}
 J(\pi) &= \int \left( \prod_{t=0}^T da_t ds_{t+1} ~ \pi(a_t|s_t) P(s_{t+1}|s_t, a_t)  \right) \sum_{s=0}^T \gamma^s r_s \\
@@ -278,7 +278,7 @@ J(\pi) = \int \left( \prod_{t=0}^T da_t do_{t+1} dr_t ~ \pi(a_t|h_t) \mu(o_{t+1}
 \mu(o_{t+1}, r_t | h_t, a_t) = \delta(r_t - R_t(h_t,a_t,o_{t+1})) \delta(o_{t+1}-O_t(h_t, a_t))
 \end{equation}
 ```
-$R_t, O_t$ はそれぞれ時刻 $t$ における奨励と観測の決定論的な方程式. 特別な決まりがなければ、$\forall t, R_t\equiv R, O_t\equiv O$ とおく.
+$R_t, O_t$ はそれぞれ時刻 $t$ における奨励と観測の決定論的な関数. 特別な決まりがなければ、$\forall t \in \mathbb{N}, R_t\equiv R, O_t\equiv O$ とおく.
 
 ```math
 \begin{align}
@@ -290,12 +290,12 @@ J(\pi) &= \int \left( \prod_{t=0}^T da_t do_{t+1} dr_t ~ \pi(a_t|h_t) \delta(r_t
 
 ### 1.6 環境測度の分離変数
 
-Hutterが定義された環境測度 $\mu(o_{t+1}, r_t | h_t, a_t)$ は、観測および報酬の同時分布になっている. ただし、より自然的な順序としては、
+Hutterが定義された環境測度 $\mu(o_{t+1}, r_t | h_t, a_t)$ は、観測および報酬の同時分布になっている. ただし、観測と採点が別々で行われるの場合、以下の順序がより自然的である (2,3が逆さまでも可能)
 1. 過去の履歴 $h_t$ に基づいて、新しい動作を予測 $a_t \sim \pi_\theta(\cdot | h_t)$
 2. この動作および過去の履歴で、環境と相互作用し、新しい観測を予測 $o_{t+1}\sim \mu_O(\cdot | h_t, a_t)$
 3. 最後に履歴、新しい動作および新しい観測に基づいて採点 $r_t \sim \mu_R ( \cdot | h_t, a_t, o_{t+1})$
 
-この一連の挙動を連合分布で表現すると
+以上を同時分布で表現すると
 
 ```math
 \begin{equation}
@@ -316,5 +316,63 @@ $\mu_O, \mu_R$ の積は環境測度そのものである
 \end{align}
 ```
 
+## 1.7 Summary
+
+**強化学習の定式化** :
+- History-based RL / General RL: Marcus Hutterによって定式化されたRL
+  - 隠れた変数による影響を **確率過程** にモデリングする
+  - 新しい観測値およびスコアを推定するには履歴および動作が必要
+  - $\mathcal{M} = (\mathcal{O}, \mathcal{A}, \mathcal{H}, \mu, r, \gamma, \pi)$
+
+- Markov Decision Process formalized RL: 強化学習の定番
+  - **マルコフ性 (Markov property )** を満たす必要がある
+  すなわち 新しい状態は現在の状態しか依存しないこと: $P(s_{t+1}|s_t, a_t)$
+  - $\mathcal{M} = (\mathcal{S}, \mathcal{A}, \mu, r, \gamma, \pi)$
+
+**最適化目標** : 累積報酬を最大にするように方策モデルを調整する. 
+```math
+\pi^*_\theta = \underset{\theta}{\operatorname{argmax}} ~J(\pi_\theta)
+```
+
+- History-based RL / General RL: 報酬も分布し従うとする
+```math
+\begin{align*}
+J_{o_0}(\pi_\theta) &= \prod_{t=0}^T \left( \sum_{ a_t \in \mathcal{A}} \sum_{o_{t+1} \in \mathcal{O}} \sum_{r_t \in \mathbb{R}} \pi_\theta(a_t|h_t)\mu(o_{t+1}, r_t|h_t, a_t)\right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
+&\equiv \mathbb{E}_{a\sim \pi_\theta, (o,r)\sim\mu} [G_0 | o_0]
+\end{align*}
+```
+
+- Markov Decision Process formalized RL:
+```math
+\begin{align*}
+J_{s_0}(\pi_\theta) &= \prod_{t=0}^T \left( \sum_{a_t \in \mathcal{A}} \sum_{s_{t+1} \in \mathcal{S}} \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
+&\equiv \mathbb{E}_{a\sim \pi_\theta, s \sim\mu} [G_0 | s_0]
+\end{align*}
+```
+
+**Bellman 方程式** : 
+
+価値関数 (Value function, V function): 状態 $s_t$ or 履歴 $h_t$ が与えられる時、将来(時刻$t+1$以後)の報酬を予測
+- History-based RL / General RL:
+```math
+V_{\pi} (h) = \sum_{a \in \mathcal{A}} \pi_\theta(a | h) \sum_{o' \in \mathcal{O}} \mu(o' | h, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right]
+```
+- Markov Decision Process formalized RL:
+```math
+V_{\pi} (s) = \sum_{a \in \mathcal{A}} \pi_\theta(a | s) \sum_{s' \in \mathcal{S}} P(s' | s, a) \left[ r(s, a, s') + \gamma V_{\pi}(s') \right]
+```
+
+
+行動価値関数 (Action-value function, Q function): 状態 $s_t$ or 履歴 $h_t$ およびそれに基づいて予測した行動 $a_t$ が与えられる時、将来の報酬を予測
+- History-based RL / General RL:
+```math
+Q_\pi(h,a) = \sum_{o' \in \mathcal{O}} \mu(o' | o, a) \left[ r(h, a, o') + \gamma V_{\pi}(h') \right] 
+```
+- Markov Decision Process formalized RL:
+```math
+Q_\pi(s,a) = \sum_{s' \in \mathcal{S}} P(s' | s, a) \left[ r(s, a, s') + \gamma V_{\pi}(s') \right]
+```
 
 # 2. 強化学習
+
+## 2.1 
