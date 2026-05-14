@@ -141,10 +141,10 @@ J_{s_0}(\pi_\theta) &= \sum_{a_0 \in \mathcal{A}} \sum_{s_1 \in \mathcal{S}} \su
 \end{align}
 ```
 
-Eq(17)は以下の規格化条件が課されるから
+Eq(17)は以下の規格化条件か課されるから
 ```math
 \begin{equation}
-\sum_{a_k \in \mathcal{A}} \sum_{s_{k+1} \in \mathcal{S}}  \cdots \sum_{a_T \in \mathcal{A}} \sum_{s_{T+1} \in \mathcal{S}} \prod_{t=k}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) = 1
+\sum_{a_t \in \mathcal{A}} \sum_{s_{t+1} \in \mathcal{S}}  \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \equiv \sum_{s_{k+1} \in \mathcal{S}}  p(s_{t+1} | s_t)  = 1
 \end{equation}
 ```
 
@@ -315,6 +315,12 @@ $\mu_O, \mu_R$ の積は環境測度そのものである
 \mu_R(r_t | h_t, a_t, o_{t+1}) &= \delta(r_t - R_t(h_t,a_t,o_{t+1}))
 \end{align}
 ```
+
+
+```math
+\mu(o_{t+1},r_t|h_t,a_t) = \int \mathcal{D}z_{t} \mathcal{D}z_{t+1} ~ q(z_{t+1}|z_t) p(z_{t}|h_t,a_t) \mu_{\text{with\_hidden\_variables}}(o_{t+1},r_t,z_{t+1}|h_t,a_t,z_t)
+```
+
 
 ## 1.7 Summary
 
