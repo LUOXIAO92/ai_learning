@@ -6,8 +6,8 @@
 
 文章意图是讨论扩大采样路径的物理方法，主线有两条 : 
 
-- **再采样** : 在 RL 原始累积回报定义下，对观测量 $o_{t+1}$ 和奖励 $r_t$ 做再采样 / 重估计，用于改进 rollout、回报估计、advantage 估计和 PPO / GRPO / GSPO 更新。
-- **路径积分** : 在路径积分图像下，引入有效哈密顿量、Boltzmann 权重、Gibbs 采样、MCMC / Langevin 和逆温度退火，用于直接在路径空间中扩大采样并寻找低哈密顿量路径。
+- **再采样** : 在 RL 原始累积回报定义下，对观测量 $o_{t+1}$ 和奖励 $r_t$ 做再采样 / 重估计，用于改进 rollout、回报估计、advantage 估计和 PPO / GRPO / GSPO 更新
+- **路径积分** : 在路径积分图像下，引入有效哈密顿量、Boltzmann 权重、Gibbs 采样、MCMC / Langevin 和逆温度退火，用于直接在路径空间中扩大采样并寻找低哈密顿量路径
 
 共同基础是 : 
 - history-based RL 可以写成一维时间方向上的路径积分
@@ -19,7 +19,6 @@
 ## 1. 原始 history-based RL 轨迹积分
 
 从最原始的形式开始。交互历史为 : 
-
 ```math
 \begin{equation}
 h_t=(o_0,a_0,r_0,o_1,a_1,r_1,\ldots,a_{t-1},r_{t-1},o_t)
@@ -28,7 +27,6 @@ h_t=(o_0,a_0,r_0,o_1,a_1,r_1,\ldots,a_{t-1},r_{t-1},o_t)
 ```
 
 策略为 $\pi(a_t\mid h_t)$，环境条件密度为 $\mu(o_{t+1},r_t\mid a_t,h_t)$。有限时间 $T$ 内，整条轨迹的期望回报可以写成 : 
-
 ```math
 \begin{equation}
 J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da_t\,do_{t+1}\,dr_t\right]\left(\sum_{s=0}^{T}\gamma^s r_s\right)
@@ -37,7 +35,6 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da
 ```
 
 整条路径写成 : 
-
 ```math
 \begin{equation}
 \tau=(a_0,o_1,r_0,a_1,o_2,r_1,\ldots,a_T,o_{T+1},r_T)
@@ -46,7 +43,6 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da
 ```
 
 路径回报写成 : 
-
 ```math
 \begin{equation}
 G[\tau]=\sum_{s=0}^{T}\gamma^s r_s
@@ -59,7 +55,6 @@ G[\tau]=\sum_{s=0}^{T}\gamma^s r_s
 ### 1.1. 决定论环境下的 Dirac delta 退化
 
 如果环境是决定论的，则给定 $a_t,h_t$ 后，下一步观测和奖励由确定函数给出 : 
-
 ```math
 \begin{equation}
 o_{t+1}=O(a_t,h_t),\quad r_t=R(o_{t+1},a_t,h_t)
@@ -68,7 +63,6 @@ o_{t+1}=O(a_t,h_t),\quad r_t=R(o_{t+1},a_t,h_t)
 ```
 
 环境条件密度退化为 Dirac delta : 
-
 ```math
 \begin{equation}
 \mu(o_{t+1},r_t\mid a_t,h_t)=\delta(r_t-R(o_{t+1},a_t,h_t))\delta(o_{t+1}-O(a_t,h_t))
@@ -77,7 +71,6 @@ o_{t+1}=O(a_t,h_t),\quad r_t=R(o_{t+1},a_t,h_t)
 ```
 
 代回原始轨迹积分 : 
-
 ```math
 \begin{equation}
 J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\delta(r_t-R(o_{t+1},a_t,h_t))\delta(o_{t+1}-O(a_t,h_t))\,da_t\,do_{t+1}\,dr_t\right]\left(\sum_{s=0}^{T}\gamma^s r_s\right)
@@ -86,7 +79,6 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\delta(r_t-R(o_{t+1},a_t,h_t))\d
 ```
 
 利用 Dirac delta 的基本积分性质 : 
-
 ```math
 \begin{equation}
 \int \delta(x-x_0)f(x)\,dx=f(x_0)
@@ -95,7 +87,6 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\delta(r_t-R(o_{t+1},a_t,h_t))\d
 ```
 
 环境部分坍缩后，只剩动作采样 : 
-
 ```math
 \begin{equation}
 J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\,da_t\right]\left[\sum_{s=0}^{T}\gamma^s R(O(a_s,h_s),a_s,h_s)\right]
@@ -108,9 +99,8 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\,da_t\right]\left[\sum_{s=0}^{T
 - 如果策略也决定论，整条路径坍缩成单条路径
 
 ### 1.2. 有限时域 (finite horizon)、有限奖励 (reward clipping)
-
-如果限制最大路径长度 $T\le T_{\max}$，路径积分只在有限时间区间上进行 : 
-
+为了防止奖励发散，除了把折扣设为 $\gamma<0$ 之外，还可以
+- 限制最大路径长度 $T\le T_{\max}$，路径积分只在有限时间区间上进行 (截断) : 
 ```math
 \begin{equation}
 J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da_t\,do_{t+1}\,dr_t\right]\left(\sum_{s=0}^{T_{\max}}\gamma^s r_s\right)
@@ -118,8 +108,7 @@ J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h
 \end{equation}
 ```
 
-如果对奖励进行裁剪 : 
-
+- 对奖励进行裁剪 : 
 ```math
 \begin{equation}
 \bar r_t=\operatorname{clip}(r_t,-r_{\max},r_{\max}),\quad \bar G[\tau]=\sum_{t=0}^{T}\gamma^t\bar r_t
@@ -127,17 +116,13 @@ J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h
 \end{equation}
 ```
 
-意义 : 
-- 有限时域是时间截断，有限奖励是回报观测量的有界化
-
 ### 1.3. LLM RL 中的路径采样与 hidden 动作
 
 对 LLM RL 来说，外部轨迹步和自回归 token 步需要区分。本文后续约定 :
-- $t=0,\ldots,T$ 表示外部轨迹步，例如一次回答、一次 tool call、一次环境交互或一次 agent step。
-- $i$ 表示 LLM 在外部第 $t$ 步内部自回归生成的 token 位置。
+- $t=0,\ldots,T$ 表示外部轨迹步，例如一次问答、一次 tool call、一次环境交互或一次 agent step
+- $i$ 表示 LLM 在外部第 $t$ 步内部自回归生成的 token 位置
 
 设第 $t$ 个外部步对应的 token 区间为 :
-
 ```math
 \begin{equation}
 L_t\le i\le L_{t+1}-1
@@ -146,7 +131,6 @@ L_t\le i\le L_{t+1}-1
 ```
 
 于是原来粗粒度的动作 $a_t$ 在 LLM 自回归情形下应理解为一整段生成 :
-
 ```math
 \begin{equation}
 a_t\equiv [a_{L_t},a_{L_t+1},\ldots,a_{L_{t+1}-1}],\quad
@@ -155,8 +139,7 @@ da_t\equiv \prod_{i=L_t}^{L_{t+1}-1}da_i
 \end{equation}
 ```
 
-因此只要遇到自回归结构，就不能把 $da_t$ 当作单个独立动作测度。完整动作测度应写成 :
-
+因此自回归结构的完整动作测度为 :
 ```math
 \begin{equation}
 \prod_{t=0}^{T}da_t
@@ -167,7 +150,6 @@ da_t\equiv \prod_{i=L_t}^{L_{t+1}-1}da_i
 ```
 
 第 $t$ 个外部步开始前的历史仍记为 $h_t$。块内第 $i$ 个 token 的 prefix history 写成 :
-
 ```math
 \begin{equation}
 h_{i,t}\equiv (h_t,a_{L_t},a_{L_t+1},\ldots,a_{i-1}),\quad L_t\le i\le L_{t+1}-1
@@ -175,10 +157,9 @@ h_{i,t}\equiv (h_t,a_{L_t},a_{L_t+1},\ldots,a_{i-1}),\quad L_t\le i\le L_{t+1}-1
 \end{equation}
 ```
 
-这里 $h_t$ 是外部步边界处的历史；$h_{i,t}$ 是同一外部步内部的 token-prefix 历史。
+这里 $h_t$ 是外部步边界处的历史，$h_{i,t}$ 是同一外部步内部的 token-prefix 历史。
 
 模型前向在每个 token prefix 上给出 logits :
-
 ```math
 \begin{equation}
 z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
@@ -190,7 +171,6 @@ z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
 ```
 
 于是外部第 $t$ 步的段级策略就是块内 token 策略的自回归乘积 :
-
 ```math
 \begin{equation}
 \pi_\theta(a_t\mid h_t)
@@ -201,7 +181,6 @@ z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
 ```
 
 在这个约定下，LLM 轨迹仍然可以保持原来的粗粒度形式 :
-
 ```math
 \begin{equation}
 \tau=(a_0,o_1,r_0,a_1,o_2,r_1,\ldots,a_T,o_{T+1},r_T)
@@ -209,10 +188,7 @@ z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
 \end{equation}
 ```
 
-但其中每个 $a_t$ 都是一段自回归生成，而不是单个 token。
-
-如果要在连续空间做路径采样，可以把 token hidden 当作连续自由度。块内 hidden 写成 :
-
+但其中每个 $a_t$ 都是一段自回归生成，而不是单个 token。如果要在连续空间做路径采样，可以把 token hidden 当作连续自由度。块内 hidden 写成 :
 ```math
 \begin{equation}
 z_i=\operatorname{hidden}_\theta(\operatorname{prefill}(h_{i,t},a_i)),\quad
@@ -222,7 +198,6 @@ z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}]
 ```
 
 连续动作路径可以写成 :
-
 ```math
 \begin{equation}
 \tau=(z_0,o_1,r_0,z_1,o_2,r_1,\ldots,z_T,o_{T+1},r_T)
@@ -230,10 +205,7 @@ z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}]
 \end{equation}
 ```
 
-其中 $z_t$ 同样表示第 $t$ 个外部步内部的一整段 hidden 变量。
-
-若用 $b$ 表示第 $b$ 条样本，则样本轨迹写成 :
-
+其中 $z_t$ 同样表示第 $t$ 个外部步内部的一整段 hidden 变量。若用 $b$ 表示第 $b$ 条样本，则样本轨迹写成 :
 ```math
 \begin{equation}
 \tau_b=(a_{b,0},o_{b,1},r_{b,0},a_{b,1},o_{b,2},r_{b,1},\ldots,a_{b,T_b},o_{b,T_b+1},r_{b,T_b})
@@ -241,28 +213,26 @@ z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}]
 \end{equation}
 ```
 
-这里不再用 $i$ 表示样本编号，因为 $i$ 已经保留给 token 位置。
-
-为了把 step-level discount 映射到 token 级求和，定义 token 所属的外部步为 :
-
+此时奖励可以写成如下形式 :
 ```math
 \begin{equation}
-t(i)=t\quad\Longleftrightarrow\quad L_t\le i\le L_{t+1}-1
+G[\tau] = \sum_{t=0}^T \sum_{i=L_t}^{L_{t+1}-1} \Gamma_{i,t} r_{i,t}, \quad \Gamma_{i,t} = \begin{cases} 
+\omega_i &, L_t \leq i < L_{t+1}-1 \\
+\gamma^t &, i = L_{t+1}
+\end{cases}, \quad r_{i,t} = R(a_{i},h_{i,t}, o_{t+1}) + \phi(a_{i},h_{t}, o_{t+1})
 \tag{16f}
 \end{equation}
 ```
 
-token 级折扣 / 权重记为 $\Gamma_i$。默认采用外部步折扣继承 :
-
 ```math
 \begin{equation}
-\Gamma_i\equiv \gamma^{t(i)}
-\tag{16g}
+\Gamma_{i,t} = \begin{cases} 
+\omega_i &, L_t \leq i < L_{t+1}-1 \\
+\gamma^t &, i = L_{t+1}
+\end{cases}, \quad r_{i,t} = R(a_{i},h_{i,t}, o_{t+1}) + \phi(a_{i},h_{t}, o_{t+1})
+\tag{16f}
 \end{equation}
 ```
-
-如果 LLM 训练目标不使用时间折扣，可以取 $\Gamma_i=1$。如果需要额外的 generated-token mask 或长度归一化，应把它放入 token credit 权重 $\omega_i$ 或资源成本 $c_i$ 中，而不是让 $\Gamma_i$ 同时承担多个含义。
-
 
 ---
 
@@ -292,7 +262,6 @@ J(\pi)=\int P_{\pi,\mu}[\tau]G[\tau]\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 - $\tau$ 是一条 worldline，$P_{\pi,\mu}[\tau]$ 是路径权重，$G[\tau]$ 是路径收益泛函，$J(\pi)$ 是所有路径的加权平均。
 
 对 LLM 自回归生成，式 (22) 中的 $a_t$ 是一段生成。根据第 1.3 节的约定 :
-
 ```math
 \begin{equation}
 da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
@@ -302,7 +271,6 @@ da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
 ```
 
 因此 LLM 版本的路径密度是 :
-
 ```math
 \begin{equation}
 P_{\pi,\mu}^{\mathrm{AR}}[\tau]=
@@ -316,7 +284,6 @@ P_{\pi,\mu}^{\mathrm{AR}}[\tau]=
 ```
 
 对应测度为 :
-
 ```math
 \begin{equation}
 \prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
@@ -381,7 +348,6 @@ J(\pi)=\int \exp(-\beta H_0[\tau])G[\tau]\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 这里 $G[\tau]$ 是 observable insertion，不是哈密顿量的一部分。
 
 在 LLM 自回归形式下，基础作用量中的策略项展开为 :
-
 ```math
 \begin{equation}
 S_{\pi,\mu}^{\mathrm{AR}}[\tau]=-
@@ -392,7 +358,6 @@ S_{\pi,\mu}^{\mathrm{AR}}[\tau]=-
 ```
 
 并且 :
-
 ```math
 \begin{equation}
 S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau],\quad
@@ -438,7 +403,6 @@ S_{\pi,\mu}[\tau]=-
 - RL path integral 是一维时间方向上的复杂单体系统，内部自由度是 action、observation、reward，复杂性来自这些自由度通过历史 $h_t$ 发生长程时间耦合。
 
 对 LLM 来说，这个一维时间方向具有嵌套结构。外层时间 $t$ 是环境 / 工具 / agent 交互步，内层 token 位置 $i$ 是同一外部步内部的自回归微步。于是自由度可写成 :
-
 ```math
 \begin{equation}
 x_t^{\mathrm{AR}}=(a_{L_t},\ldots,a_{L_{t+1}-1},o_{t+1},r_t)
@@ -447,7 +411,6 @@ x_t^{\mathrm{AR}}=(a_{L_t},\ldots,a_{L_{t+1}-1},o_{t+1},r_t)
 ```
 
 其中 :
-
 ```math
 \begin{equation}
 h_{i,t}=(h_t,a_{L_t},\ldots,a_{i-1})
@@ -896,7 +859,6 @@ P_{\pi,\mu}[\tau]=\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)=\e
 其中 $H_0[\tau]$ 是由原始策略和环境诱导出的基础哈密顿量，$\beta$ 是第二节中 $S=\beta H$ 的共同逆温度。
 
 在 LLM 自回归形式下，式 (70) 的策略部分展开为 :
-
 ```math
 \begin{equation}
 P_{\pi,\mu}^{\mathrm{AR}}[\tau]=
@@ -911,7 +873,6 @@ P_{\pi,\mu}^{\mathrm{AR}}[\tau]=
 ```
 
 第 3.1--3.3 节讨论的是 $o_{t+1}$ 和 $r_t$ 的再采样，不改变 token 生成测度本身。因此在 LLM 情形下，$a_t$ 只需要理解成自回归 token 段 :
-
 ```math
 \begin{equation}
 a_t=[a_{L_t},\ldots,a_{L_{t+1}-1}],\quad
@@ -1059,7 +1020,6 @@ G[\tau^{(m,k)}]=\sum_{t=0}^{T}\gamma^t r_t^{(m,k)}
 ```
 
 如果 GSPO / GRPO / PPO 更新需要把 step-level score 折算到 token，可以在训练损失中引入 token credit :
-
 ```math
 \begin{equation}
 r_i^{(m,k)}=\omega_i r_t^{(m,k)},\quad L_t\le i\le L_{t+1}-1
@@ -1068,7 +1028,6 @@ r_i^{(m,k)}=\omega_i r_t^{(m,k)},\quad L_t\le i\le L_{t+1}-1
 ```
 
 并得到 token 展开的训练观测量。这里的 $\Gamma_i$ 沿用第 1.3 节定义，默认是 $\Gamma_i=\gamma^{t(i)}$ :
-
 ```math
 \begin{equation}
 G_{\mathrm{tok}}[\tau^{(m,k)}]=
@@ -1149,7 +1108,6 @@ G_{\mathrm{tok}}[\tau^{(m,k)}]=
 ### 4.1. 非自回归 LLM RL : 目标观测量与惩罚量
 
 先假设一个外部 step 的动作 $a_t$ 是完整回答片段、tool call、代码 patch 或 agent step，不展开其 token 内部结构。原始路径权重仍然是 :
-
 ```math
 \begin{equation}
 P_{\pi,\mu}[\tau]=\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)=\exp(-\beta H_0[\tau])
@@ -1160,7 +1118,6 @@ P_{\pi,\mu}[\tau]=\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)=\e
 正则化 RL 目标中的各项先作为 observable / penalty 定义，而不是作为哈密顿量的一部分。
 
 回报 observable 为 :
-
 ```math
 \begin{equation}
 G[\tau]=\sum_{t=0}^{T}\gamma^t r_t
@@ -1169,7 +1126,6 @@ G[\tau]=\sum_{t=0}^{T}\gamma^t r_t
 ```
 
 给定 history $h_t$，exact KL 是两个动作分布之间的 divergence :
-
 ```math
 \begin{equation}
 D_t(h_t)=\int d\tilde a\,\pi(\tilde a\mid h_t)
@@ -1179,7 +1135,6 @@ D_t(h_t)=\int d\tilde a\,\pi(\tilde a\mid h_t)
 ```
 
 这里的积分变量是 $\tilde a$，不是路径里已经采样出来的 $a_t$。如果沿当前路径访问到的 histories 取和，可以定义 :
-
 ```math
 \begin{equation}
 K_{\mathrm{exact\ path}}[\tau]=\sum_{t=0}^{T}D_t(h_t)
@@ -1190,7 +1145,6 @@ K_{\mathrm{exact\ path}}[\tau]=\sum_{t=0}^{T}D_t(h_t)
 它的目标函数贡献是 $\mathbb E_{\tau\sim P_{\pi,\mu}}[K_{\mathrm{exact\ path}}[\tau]]$。
 
 如果使用 sampled log-ratio，则路径级 KL observable 为 :
-
 ```math
 \begin{equation}
 K_{\mathrm{sample}}[\tau]=\sum_{t=0}^{T}
@@ -1200,7 +1154,6 @@ K_{\mathrm{sample}}[\tau]=\sum_{t=0}^{T}
 ```
 
 资源或长度成本只有在能区分路径时才有意义，例如 :
-
 ```math
 \begin{equation}
 N[\tau]=\sum_{t=0}^{T}c_N(a_t,h_t)
@@ -1211,7 +1164,6 @@ N[\tau]=\sum_{t=0}^{T}c_N(a_t,h_t)
 如果 horizon 固定且 $N[\tau]=T+1$ 是常数，则它不会改变路径选择。
 
 使用 sampled log-ratio 时，可以把整体目标观测量写成 :
-
 ```math
 \begin{equation}
 F[\tau]=G[\tau]-\lambda_{\mathrm{KL}}K_{\mathrm{sample}}[\tau]-\lambda_NN[\tau]
@@ -1222,7 +1174,6 @@ F[\tau]=G[\tau]-\lambda_{\mathrm{KL}}K_{\mathrm{sample}}[\tau]-\lambda_NN[\tau]
 如果使用 exact KL，则把 $K_{\mathrm{sample}}[\tau]$ 替换成 $K_{\mathrm{exact\ path}}[\tau]$，并明确它最终要对 $P_{\pi,\mu}$ 诱导的 history occupancy 取期望。
 
 正则目标是 :
-
 ```math
 \begin{equation}
 J_{\mathrm{reg}}(\pi)=\mathbb E_{\tau\sim P_{\pi,\mu}}[F[\tau]]
@@ -1235,7 +1186,6 @@ J_{\mathrm{reg}}(\pi)=\mathbb E_{\tau\sim P_{\pi,\mu}}[F[\tau]]
 ### 4.2. 基础 Boltzmann 权重
 
 基础 Boltzmann 权重只回顾原始路径分布 :
-
 ```math
 \begin{equation}
 P_{\pi,\mu}[\tau]=\exp(-\beta H_0[\tau])
@@ -1244,7 +1194,6 @@ P_{\pi,\mu}[\tau]=\exp(-\beta H_0[\tau])
 ```
 
 对应配分函数为 :
-
 ```math
 \begin{equation}
 Z_0(\beta)=\int \exp(-\beta H_0[\tau])\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
@@ -1257,7 +1206,6 @@ Z_0(\beta)=\int \exp(-\beta H_0[\tau])\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 ### 4.3. Gibbs 采样 : 对整体目标观测量做 tilt
 
 如果只是估计原始期望或正则目标，不需要把 observable 放进指数，直接从 $P_{\pi,\mu}$ 采样并求平均即可 :
-
 ```math
 \begin{equation}
 \widehat J_{\mathrm{reg}}(\pi)=\frac{1}{K}\sum_{b=1}^{K}F[\tau_b],\quad \tau_b\sim P_{\pi,\mu}
@@ -1266,7 +1214,6 @@ Z_0(\beta)=\int \exp(-\beta H_0[\tau])\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 ```
 
 Gibbs 采样用于另一个目的 : 构造一个偏向高目标值路径的采样分布。引入 tilt 强度 $\eta$，定义 :
-
 ```math
 \begin{equation}
 q_\eta(\tau\mid\pi,\mu)=
@@ -1277,7 +1224,6 @@ q_\eta(\tau\mid\pi,\mu)=
 ```
 
 配分函数为 :
-
 ```math
 \begin{equation}
 Z(\beta,\eta,\lambda_{\mathrm{KL}},\lambda_N)=
@@ -1288,7 +1234,6 @@ Z(\beta,\eta,\lambda_{\mathrm{KL}},\lambda_N)=
 ```
 
 这时可以等价定义 Gibbs 采样分布的有效哈密顿量 :
-
 ```math
 \begin{equation}
 H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
@@ -1297,7 +1242,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 ```
 
 但 $H_{\mathrm{Gibbs}}$ 只是 tilted sampling distribution 的等价哈密顿量，不是原始 RL 路径哈密顿量。关闭 tilt 时 :
-
 ```math
 \begin{equation}
 \eta=0\quad\Longrightarrow\quad q_\eta(\tau\mid\pi,\mu)=P_{\pi,\mu}[\tau]
@@ -1306,7 +1250,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 ```
 
 如果从 Gibbs 分布中采样 :
-
 ```math
 \begin{equation}
 \tau_b\sim q_\eta(\tau\mid\pi,\mu),\quad b=1,\ldots,K
@@ -1315,7 +1258,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 ```
 
 则样本均值估计的是 Gibbs ensemble 下的期望 :
-
 ```math
 \begin{equation}
 \widehat{\mathbb E}_{q_\eta}[F]=\frac{1}{K}\sum_{b=1}^{K}F[\tau_b]
@@ -1324,7 +1266,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 ```
 
 并且 :
-
 ```math
 \begin{equation}
 \mathbb E_{q_\eta}[F]=\frac{\partial\log Z}{\partial\eta}
@@ -1333,7 +1274,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 ```
 
 如果要从 Gibbs 样本反推原始路径分布下的期望，需要 importance reweighting :
-
 ```math
 \begin{equation}
 w_b=\exp(-\eta F[\tau_b])
@@ -1342,7 +1282,6 @@ w_b=\exp(-\eta F[\tau_b])
 ```
 
 于是对任意路径 observable $O[\tau]$ 有 :
-
 ```math
 \begin{equation}
 \widehat{\mathbb E}_{P}[O]=\frac{\sum_{b=1}^{K}w_bO[\tau_b]}{\sum_{b=1}^{K}w_b}
@@ -1353,7 +1292,6 @@ w_b=\exp(-\eta F[\tau_b])
 ### 4.4. LLM 自回归形式 : token 测度、KL 和目标观测量
 
 现在把非自回归的 $a_t$ 展开成 LLM 自回归 token 段。根据第 1.3 节 :
-
 ```math
 \begin{equation}
 da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
@@ -1363,7 +1301,6 @@ a_t\equiv[a_{L_t},\ldots,a_{L_{t+1}-1}]
 ```
 
 块内 prefix 为 :
-
 ```math
 \begin{equation}
 h_{i,t}\equiv(h_t,a_{L_t},\ldots,a_{i-1})
@@ -1372,7 +1309,6 @@ h_{i,t}\equiv(h_t,a_{L_t},\ldots,a_{i-1})
 ```
 
 策略分布展开为 :
-
 ```math
 \begin{equation}
 \pi(a_t\mid h_t)\equiv\prod_{i=L_t}^{L_{t+1}-1}\pi(a_i\mid h_{i,t})
@@ -1381,7 +1317,6 @@ h_{i,t}\equiv(h_t,a_{L_t},\ldots,a_{i-1})
 ```
 
 基础作用量为 :
-
 ```math
 \begin{equation}
 S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau]=-
@@ -1392,7 +1327,6 @@ S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau]=-
 ```
 
 exact token-prefix KL 为 :
-
 ```math
 \begin{equation}
 D_i(h_{i,t})=\int d\tilde a_i\,\pi(\tilde a_i\mid h_{i,t})
@@ -1402,7 +1336,6 @@ D_i(h_{i,t})=\int d\tilde a_i\,\pi(\tilde a_i\mid h_{i,t})
 ```
 
 sampled token log-ratio 为 :
-
 ```math
 \begin{equation}
 k_i=\log\frac{\pi(a_i\mid h_{i,t})}{\pi_{\mathrm{ref}}(a_i\mid h_{i,t})}
@@ -1411,7 +1344,6 @@ k_i=\log\frac{\pi(a_i\mid h_{i,t})}{\pi_{\mathrm{ref}}(a_i\mid h_{i,t})}
 ```
 
 对应整条路径的 sampled KL observable 是 :
-
 ```math
 \begin{equation}
 K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]=
@@ -1422,7 +1354,6 @@ K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]=
 ```
 
 这也等价于段级 sampled log-ratio :
-
 ```math
 \begin{equation}
 K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]
@@ -1434,7 +1365,6 @@ K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]
 但式 (117) 成立的前提是 $\pi(a_t\mid h_t)$ 被理解为式 (112) 的自回归乘积。
 
 资源成本也应按 token 或真实资源写成 :
-
 ```math
 \begin{equation}
 N^{\mathrm{AR}}[\tau]=\sum_{t=0}^{T}\sum_{i=L_t}^{L_{t+1}-1}c_i
@@ -1443,7 +1373,6 @@ N^{\mathrm{AR}}[\tau]=\sum_{t=0}^{T}\sum_{i=L_t}^{L_{t+1}-1}c_i
 ```
 
 若 step-level 分数或 GSPO / GRPO advantage 需要折算到 token，可以写成 :
-
 ```math
 \begin{equation}
 r_i=\omega_i R_t(h_t,a_t,o_{t+1}),\quad L_t\le i\le L_{t+1}-1
@@ -1452,7 +1381,6 @@ r_i=\omega_i R_t(h_t,a_t,o_{t+1}),\quad L_t\le i\le L_{t+1}-1
 ```
 
 于是 token 展开的整体目标观测量为。这里 $\Gamma_i$ 沿用第 1.3 节定义，默认是 $\Gamma_i=\gamma^{t(i)}$ :
-
 ```math
 \begin{equation}
 F^{\mathrm{AR}}[\tau]=
@@ -1463,7 +1391,6 @@ F^{\mathrm{AR}}[\tau]=
 ```
 
 对应 Gibbs tilted 分布为 :
-
 ```math
 \begin{equation}
 q_\eta^{\mathrm{AR}}(\tau)=
@@ -1476,7 +1403,6 @@ q_\eta^{\mathrm{AR}}(\tau)=
 ### 4.5. MCMC 路径采样
 
 若使用模拟退火，设 $k=0,1,\ldots,K_{\mathrm{ann}}$ 表示外部采样器的退火迭代步，$\beta_k$ 是第 $k$ 轮的逆温度，$\eta_k$ 是目标 tilt 强度。目标路径分布为 :
-
 ```math
 \begin{equation}
 q_k(\tau)=\frac{1}{Z_k}\exp\left(-\beta_k H_0[\tau]+\eta_kF[\tau]\right)
@@ -1485,7 +1411,6 @@ q_k(\tau)=\frac{1}{Z_k}\exp\left(-\beta_k H_0[\tau]+\eta_kF[\tau]\right)
 ```
 
 从当前路径生成候选路径 :
-
 ```math
 \begin{equation}
 \tau'\sim q_{\mathrm{prop}}(\tau'\mid\tau)
@@ -1494,7 +1419,6 @@ q_k(\tau)=\frac{1}{Z_k}\exp\left(-\beta_k H_0[\tau]+\eta_kF[\tau]\right)
 ```
 
 Metropolis-Hastings 接受率为 :
-
 ```math
 \begin{equation}
 A_k(\tau\rightarrow\tau')=
@@ -1513,7 +1437,6 @@ A_k(\tau\rightarrow\tau')=
 ### 4.6. Langevin 路径采样与逆温度退火
 
 Langevin 更适合在连续自由度上做，尤其是 hidden action $z_i$ 或 hidden block $z_t$。第 $k$ 轮退火迭代的无量纲 Gibbs 采样作用量为 :
-
 ```math
 \begin{equation}
 S_{\mathrm{Gibbs}}^{(k)}[\tau]=\beta_k H_0[\tau]-\eta_kF[\tau]
@@ -1522,7 +1445,6 @@ S_{\mathrm{Gibbs}}^{(k)}[\tau]=\beta_k H_0[\tau]-\eta_kF[\tau]
 ```
 
 对连续 hidden 片段 $z_{u:v}$ 做 Langevin 更新 :
-
 ```math
 \begin{equation}
 z_{u:v}^{(k+1)}=z_{u:v}^{(k)}-
@@ -1533,7 +1455,6 @@ z_{u:v}^{(k+1)}=z_{u:v}^{(k)}-
 ```
 
 其中 :
-
 ```math
 \begin{equation}
 \xi_k\sim\mathcal N(0,I)
@@ -1542,7 +1463,6 @@ z_{u:v}^{(k+1)}=z_{u:v}^{(k)}-
 ```
 
 模拟退火通过递增逆温度实现 :
-
 ```math
 \begin{equation}
 \beta_0<\beta_1<\cdots<\beta_{K_{\mathrm{ann}}}
@@ -1623,7 +1543,6 @@ z_{u:v}^{(k+1)}=z_{u:v}^{(k)}-
 ```
 
 在 LLM 自回归形式中，$a_t$ 是第 $t$ 个外部步的整段生成 :
-
 ```math
 \begin{equation}
 a_t=[a_{L_t},\ldots,a_{L_{t+1}-1}]
@@ -1643,7 +1562,6 @@ a_t=[a_{L_t},\ldots,a_{L_{t+1}-1}]
 如果更新器需要 token-level loss，则把 step-level score 或 advantage 分配到 token 上即可。
 
 第四节是路径空间 Gibbs 采样。它不把惩罚项预先塞进基础哈密顿量，而是先定义整体目标观测量 $F[\tau]$，再做 tilt :
-
 ```math
 \begin{equation}
 q_k(\tau\mid\pi,\mu)=\frac{1}{Z_k}\exp\left(-\beta_kH_0[\tau]+\eta_kF[\tau]\right)
@@ -1696,7 +1614,6 @@ J(\pi)=\int \exp(-\beta H_0[\tau])G[\tau]\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 ```
 
 第四节的正则化目标先写成整体路径观测量 :
-
 ```math
 \begin{equation}
 F[\tau]=G[\tau]-\lambda_{\mathrm{KL}}K[\tau]-\lambda_NN[\tau]
@@ -1705,7 +1622,6 @@ F[\tau]=G[\tau]-\lambda_{\mathrm{KL}}K[\tau]-\lambda_NN[\tau]
 ```
 
 其中 $K[\tau]$ 必须明确是 sampled log-ratio 路径 observable，或者是沿路径访问到的 exact history KL 之和。sampled 版本为 :
-
 ```math
 \begin{equation}
 K_{\mathrm{sample}}[\tau]=\sum_{t=0}^{T}\log\frac{\pi(a_t\mid h_t)}{\pi_{\mathrm{ref}}(a_t\mid h_t)}
@@ -1714,7 +1630,6 @@ K_{\mathrm{sample}}[\tau]=\sum_{t=0}^{T}\log\frac{\pi(a_t\mid h_t)}{\pi_{\mathrm
 ```
 
 exact history KL 版本为 :
-
 ```math
 \begin{equation}
 K_{\mathrm{exact\ path}}[\tau]=\sum_{t=0}^{T}D_t(h_t),\quad
@@ -1725,7 +1640,6 @@ D_t(h_t)=\int d\tilde a\,\pi(\tilde a\mid h_t)
 ```
 
 正则目标是 :
-
 ```math
 \begin{equation}
 J_{\mathrm{reg}}(\pi)=\mathbb E_{\tau\sim P_{\pi,\mu}}[F[\tau]]
@@ -1734,7 +1648,6 @@ J_{\mathrm{reg}}(\pi)=\mathbb E_{\tau\sim P_{\pi,\mu}}[F[\tau]]
 ```
 
 Gibbs tilted 路径采样分布为 :
-
 ```math
 \begin{equation}
 q_\eta(\tau\mid\pi,\mu)=
@@ -1745,7 +1658,6 @@ q_\eta(\tau\mid\pi,\mu)=
 ```
 
 对应的 Gibbs 等价哈密顿量为 :
-
 ```math
 \begin{equation}
 H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
@@ -1756,7 +1668,6 @@ H_{\mathrm{Gibbs}}[\tau]=H_0[\tau]-\frac{\eta}{\beta}F[\tau]
 注意 $H_{\mathrm{Gibbs}}$ 只是 tilted sampling distribution 的等价写法，不是原始路径哈密顿量。
 
 LLM 自回归版本在原有公式上增加 :
-
 ```math
 \begin{equation}
 da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
@@ -1774,7 +1685,6 @@ h_{i,t}\equiv(h_t,a_{L_t},\ldots,a_{i-1})
 ```
 
 于是自回归基础作用量为 :
-
 ```math
 \begin{equation}
 S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau]=-
@@ -1785,7 +1695,6 @@ S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau]=-
 ```
 
 LLM 自回归 sampled KL 为 :
-
 ```math
 \begin{equation}
 K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]=
@@ -1796,7 +1705,6 @@ K_{\mathrm{sample}}^{\mathrm{AR}}[\tau]=
 ```
 
 如果将 reward / score / advantage 折算到 token，定义 :
-
 ```math
 \begin{equation}
 F^{\mathrm{AR}}[\tau]=
@@ -1807,7 +1715,6 @@ F^{\mathrm{AR}}[\tau]=
 ```
 
 其中 $\Gamma_i$ 沿用第 1.3 节定义，默认是 $\Gamma_i=\gamma^{t(i)}$；若不使用时间折扣则取 $\Gamma_i=1$。$k_i$ 为 sampled token log-ratio :
-
 ```math
 \begin{equation}
 k_i=\log\frac{\pi(a_i\mid h_{i,t})}{\pi_{\mathrm{ref}}(a_i\mid h_{i,t})}
@@ -1816,7 +1723,6 @@ k_i=\log\frac{\pi(a_i\mid h_{i,t})}{\pi_{\mathrm{ref}}(a_i\mid h_{i,t})}
 ```
 
 最终 LLM 自回归 Gibbs tilted 分布为 :
-
 ```math
 \begin{equation}
 q_\eta^{\mathrm{AR}}(\tau)=
@@ -1872,7 +1778,6 @@ C_r[\tau]=-
 ```
 
 若使用这些可选惩罚，应该扩展整体目标观测量 :
-
 ```math
 \begin{equation}
 F_{\mathrm{cred}}[\tau]=
@@ -1882,7 +1787,6 @@ F[\tau]-\rho_oC_o[\tau]-\rho_rC_r[\tau]
 ```
 
 对应 Gibbs tilted 采样分布为 :
-
 ```math
 \begin{equation}
 q_\eta(\tau)=
@@ -1895,7 +1799,6 @@ q_\eta(\tau)=
 这里 $C_o$ 和 $C_r$ 没有进入原始 $H_0$。只有当 $\hat\mu_o$ 或 $\hat\mu_r$ 被明确改造成新的生成 / proposal 路径分布时，它们的负对数才会成为那个新 proposal 的基础作用量的一部分；这和把可信度惩罚作为 RL 目标项是两件事。
 
 在 LLM 自回归形式下，只需使用 :
-
 ```math
 \begin{equation}
 a_t=[a_{L_t},\ldots,a_{L_{t+1}-1}],\quad
@@ -1941,7 +1844,6 @@ T\longrightarrow \frac{T}{b}\longrightarrow \frac{T}{b^2}\longrightarrow \cdots 
 ```
 
 其中 $S_0[\tau]=\beta H_0[\tau]$。如果讨论 Gibbs tilted 采样分布，则应该压缩的是 :
-
 ```math
 \begin{equation}
 S_{\mathrm{Gibbs}}[\tau]=\beta H_0[\tau]-\eta F[\tau]
@@ -1950,7 +1852,6 @@ S_{\mathrm{Gibbs}}[\tau]=\beta H_0[\tau]-\eta F[\tau]
 ```
 
 对应 :
-
 ```math
 \begin{equation}
 \exp(-\bar S_{\mathrm{Gibbs}}[\bar\tau])=
@@ -1964,7 +1865,6 @@ S_{\mathrm{Gibbs}}[\tau]=\beta H_0[\tau]-\eta F[\tau]
 这区分了两种对象 : 原始路径分布的 temporal RG 和 Gibbs tilted 采样分布的 temporal RG。不要把目标惩罚项提前混入 $S_0$。
 
 LLM 自回归版本有两层时间结构。外层是环境 / agent step $t$，内层是 token 位置 $i$。第 $t$ 个外部 step 的 token 段为 :
-
 ```math
 \begin{equation}
 a_t=[a_{L_t},\ldots,a_{L_{t+1}-1}],\quad
@@ -1974,7 +1874,6 @@ da_t=\prod_{i=L_t}^{L_{t+1}-1}da_i
 ```
 
 因此最基本的 LLM 时间粗粒化已经是把 token 微步积分成段级动作 $a_t$ :
-
 ```math
 \begin{equation}
 \prod_{t=0}^{T}\prod_{i=L_t}^{L_{t+1}-1}da_i
@@ -1984,7 +1883,6 @@ da_t=\prod_{i=L_t}^{L_{t+1}-1}da_i
 ```
 
 如果还要在一个外部 step 内部继续做 token-block 压缩，令第 $t$ 个外部 step 内部的第 $\ell$ 个 token 块为 :
-
 ```math
 \begin{equation}
 B_{t,\ell}=C_\phi(a_{L_t+\ell b},a_{L_t+\ell b+1},\ldots,a_{L_t+(\ell+1)b-1})
@@ -1993,7 +1891,6 @@ B_{t,\ell}=C_\phi(a_{L_t+\ell b},a_{L_t+\ell b+1},\ldots,a_{L_t+(\ell+1)b-1})
 ```
 
 则 LLM 自回归基础作用量的粗粒化写成 :
-
 ```math
 \begin{equation}
 \exp(-S_0^{\mathrm{AR}}[\bar\tau])=
@@ -2005,7 +1902,6 @@ B_{t,\ell}=C_\phi(a_{L_t+\ell b},a_{L_t+\ell b+1},\ldots,a_{L_t+(\ell+1)b-1})
 ```
 
 其中 :
-
 ```math
 \begin{equation}
 S_0^{\mathrm{AR}}[\tau]=-
@@ -2016,7 +1912,6 @@ S_0^{\mathrm{AR}}[\tau]=-
 ```
 
 如果做 LLM Gibbs tilted 路径采样，则需要压缩 :
-
 ```math
 \begin{equation}
 S_{\mathrm{Gibbs}}^{\mathrm{AR}}[\tau]=
