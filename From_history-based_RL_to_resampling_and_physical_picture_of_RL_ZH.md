@@ -122,65 +122,38 @@ J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h
 - $t=0,\ldots,T$ 表示外部轨迹步，例如一次问答、一次 tool call、一次环境交互或一次 agent step
 - $i$ 表示 LLM 在外部第 $t$ 步内部自回归生成的 token 位置
 
-设第 $t$ 个外部步对应的 token 区间为 :
+设第 $t$ 个外部步对应的 token 区间为 $L_t\le i\le L_{t+1}-1$ ，并且已有外部步历史 $h_{t} = [h_{t-1}, a_{L_{t-1}}, \cdots a_{L_t-1}, o_{t}, r_{t-1}] $，在这里我们记同一外部步区间的 token-prefix 历史为 $h_{i,t} \equiv \text{concat}(h_t, [a_{L_t},a_{L_t+1},\ldots,a_{i-1}])$ 。此时模型在这个区间的 token 生成步骤如下:
+- 预测第 $i$ 个 token (的logit):
+  ```math
+  z_i^{\mathrm{logit}} = f_\theta(h_{i,t})
+  ```
+- 采样 (在这一步可使用top-p, top-k等采样策略):
+  ```math
+  \pi_{\theta,T_{\mathrm{dec}}}(a_i\mid h_{i,t}) =  \frac{\exp(z^{\mathrm{logit}}_{i,a_i}/T_{\mathrm{dec}})} {\sum_{a'}\exp(z^{\mathrm{logit}}_{i,a'}/T_{\mathrm{dec}})}
+  ```
+- 拼接: 按照上面给的 $h_{i,t}$ 的定义拼接新生成的 token
+
+
+于是原来粗粒度的动作 $a_t$ 在 LLM 自回归情形下应该理解为一整段生成，token 序列服从以下的联合分布 :
 ```math
-\begin{equation}
-L_t\le i\le L_{t+1}-1
-\tag{12}
-\end{equation}
+\pi_\theta(a_{L_t},a_{L_t+1},\ldots,a_{L_{t+1}-1}|h_t) = \prod_{i=L_t}^{L_{t+1}-1} \pi_\theta(a_i|h_{i,t})
+```
+因此粗粒度动作 $a_t$ 可表示为对该联合分布做采样 :
+```math
+\begin{align}
+a_t \sim \prod_{i=L_{t}}^{L_{t+1}-1} \pi_\theta(\cdot|h_{i,t}), \quad a_t = [a_{L_t},a_{L_t+1},\ldots,a_{L_{t+1}-1}]
+\end{align}
 ```
 
-于是原来粗粒度的动作 $a_t$ 在 LLM 自回归情形下应理解为一整段生成 :
+因此积分形式下的自回归结构的完整动作测度变为如下形式 :
 ```math
 \begin{equation}
-a_t\equiv [a_{L_t},a_{L_t+1},\ldots,a_{L_{t+1}-1}],\quad
-da_t\equiv \prod_{i=L_t}^{L_{t+1}-1}da_i
-\tag{13}
-\end{equation}
-```
-
-因此自回归结构的完整动作测度为 :
-```math
-\begin{equation}
-\prod_{t=0}^{T}da_t
-\equiv
-\prod_{t=0}^{T}\prod_{i=L_t}^{L_{t+1}-1}da_i
+\prod_{t=0}^{T} da_t~ \pi_\theta(a_t|h_{t})  \equiv \prod_{t=0}^{T}\prod_{i=L_t}^{L_{t+1}-1} da_i~ \pi_\theta(a_i|h_{i,t}) 
 \tag{14}
 \end{equation}
 ```
 
-第 $t$ 个外部步开始前的历史仍记为 $h_t$。块内第 $i$ 个 token 的 prefix history 写成 :
-```math
-\begin{equation}
-h_{i,t}\equiv (h_t,a_{L_t},a_{L_t+1},\ldots,a_{i-1}),\quad L_t\le i\le L_{t+1}-1
-\tag{15}
-\end{equation}
-```
-
-这里 $h_t$ 是外部步边界处的历史，$h_{i,t}$ 是同一外部步内部的 token-prefix 历史。
-
-模型前向在每个 token prefix 上给出 logits :
-```math
-\begin{equation}
-z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
-\pi_{\theta,T_{\mathrm{dec}}}(a_i\mid h_{i,t})=
-\frac{\exp(z^{\mathrm{logit}}_{i,a_i}/T_{\mathrm{dec}})}
-{\sum_{a'}\exp(z^{\mathrm{logit}}_{i,a'}/T_{\mathrm{dec}})}
-\tag{16}
-\end{equation}
-```
-
-于是外部第 $t$ 步的段级策略就是块内 token 策略的自回归乘积 :
-```math
-\begin{equation}
-\pi_\theta(a_t\mid h_t)
-\equiv
-\prod_{i=L_t}^{L_{t+1}-1}\pi_\theta(a_i\mid h_{i,t})
-\tag{16a}
-\end{equation}
-```
-
-在这个约定下，LLM 轨迹仍然可以保持原来的粗粒度形式 :
+当 LLM 生成一条完整的 token 序列 $a_t$ 并且跟环境产生相互作用得到观测量 $o_{t+1}$ 以及回报 $r_t$ 时，我们仍可以把历史写成 $h_{t+1} = [h_t, (a_t, o_{t+1}, r_t)]$ ，在这个约定下，LLM 轨迹仍然可以保持原来的粗粒度形式 :
 ```math
 \begin{equation}
 \tau=(a_0,o_1,r_0,a_1,o_2,r_1,\ldots,a_T,o_{T+1},r_T)
@@ -188,11 +161,10 @@ z_i^{\mathrm{logit}}=f_\theta(h_{i,t}),\quad
 \end{equation}
 ```
 
-但其中每个 $a_t$ 都是一段自回归生成，而不是单个 token。如果要在连续空间做路径采样，可以把 token hidden 当作连续自由度。块内 hidden 写成 :
+再次强调此时 $a_t$ 是一段自回归生成的 token 序列，而不是单个 token。这里我们可以总结为，LLM 自回归结构只是把外部一步 $a_t$ 展开成块内 token 积分，积分完以后，外层路径变量仍然是阶段级的动作 $a_t$。如果要在连续空间做路径采样，可以把 token hidden 当作连续自由度。块内 hidden 写成 :
 ```math
 \begin{equation}
-z_i=\operatorname{hidden}_\theta(\operatorname{prefill}(h_{i,t},a_i)),\quad
-z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}]
+z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}],\quad z_i \in \mathbb{R}^{d_\mathrm{model}}
 \tag{16c}
 \end{equation}
 ```
@@ -215,24 +187,12 @@ z_t\equiv[z_{L_t},z_{L_t+1},\ldots,z_{L_{t+1}-1}]
 
 此时奖励可以写成如下形式 :
 ```math
-\begin{equation}
-G[\tau] = \sum_{t=0}^T \sum_{i=L_t}^{L_{t+1}-1} \Gamma_{i,t} r_{i,t}, \quad \Gamma_{i,t} = \begin{cases} 
-\omega_i &, L_t \leq i < L_{t+1}-1 \\
-\gamma^t &, i = L_{t+1}
-\end{cases}, \quad r_{i,t} = R(a_{i},h_{i,t}, o_{t+1}) + \phi(a_{i},h_{t}, o_{t+1})
-\tag{16f}
-\end{equation}
+\begin{align}
+G[\tau] &= \sum_{t=0}^T \gamma^t \left[ \sum_{i=L_t}^{L_{t+1}-1}  \left(\omega^{i-L_t} R(h_{i,t}, a_{i}) + \delta_{i,L_{t+1}-1}\phi(h_{t}, a_{t}, o_{t+1})\right) \right] \\
+&\equiv \sum_{t=0}^T \sum_{i=L_t}^{L_{t+1}-1} \gamma^t r_{i,t} 
+\end{align}
 ```
-
-```math
-\begin{equation}
-\Gamma_{i,t} = \begin{cases} 
-\omega_i &, L_t \leq i < L_{t+1}-1 \\
-\gamma^t &, i = L_{t+1}
-\end{cases}, \quad r_{i,t} = R(a_{i},h_{i,t}, o_{t+1}) + \phi(a_{i},h_{t}, o_{t+1})
-\tag{16f}
-\end{equation}
-```
+$\omega^{i-L_t}$ 和 $\gamma^t$ 分别为 token 级和任务步数级折扣，$R(h_{i,t}, a_{i})$ 为 token 级回报，而 $\phi(h_{i,t}, a_{i}, o_{i+1})$ 则可以作为阶段性回报，当 $t=T$ 时可化为终局回报。
 
 ---
 
@@ -240,26 +200,34 @@ G[\tau] = \sum_{t=0}^T \sum_{i=L_t}^{L_{t+1}-1} \Gamma_{i,t} r_{i,t}, \quad \Gam
 
 ### 2.1. 从轨迹积分到路径积分
 
-把原始密度连乘写成路径密度 : 
-
+首先把原始概率密度连乘写成路径密度 : 
 ```math
 \begin{equation}
-P_{\pi,\mu}[\tau]=\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)
+P_{\pi,\mu}[\tau]=\prod_{t=0}^{T} \pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)
 \tag{17}
 \end{equation}
 ```
 
-于是原始目标可以写成路径积分形式 : 
-
+于是累计回报的期望值 $J$ 可以写成泛函积分形式 : 
 ```math
 \begin{equation}
-J(\pi)=\int P_{\pi,\mu}[\tau]G[\tau]\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
+J(\pi)=\int \mathcal{D}\tau ~ P_{\pi,\mu}[\tau]G[\tau],\quad \mathcal{D}\tau = \prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
 \tag{18}
 \end{equation}
 ```
 
-物理图像是 : 
-- $\tau$ 是一条 worldline，$P_{\pi,\mu}[\tau]$ 是路径权重，$G[\tau]$ 是路径收益泛函，$J(\pi)$ 是所有路径的加权平均。
+在这里，我们进一步定义作用量 $S_{\pi,\mu}[\tau]$ :
+```math
+\begin{equation}
+S_{\pi,\mu}[\tau] = - \log P_{\pi,\mu}[\tau] = - \sum_{t=0}^T \left[ \log \pi(a_t|h_t) + \log \mu(o_{t+1},r_t | h_t, a_t) \right]
+\end{equation}
+```
+原始的轨迹积分可以用路径积分来描述 :
+```math
+\begin{equation}
+J(\pi)=\int \mathcal{D}\tau ~ e^{-S_{\pi,\mu}[\tau]} G[\tau]
+\end{equation}
+```
 
 对 LLM 自回归生成，式 (22) 中的 $a_t$ 是一段生成。根据第 1.3 节的约定 :
 ```math
@@ -273,154 +241,51 @@ da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
 因此 LLM 版本的路径密度是 :
 ```math
 \begin{equation}
-P_{\pi,\mu}^{\mathrm{AR}}[\tau]=
-\prod_{t=0}^{T}
-\left[
-\prod_{i=L_t}^{L_{t+1}-1}\pi(a_i\mid h_{i,t})
-\right]
+P^{AR}_{\pi,\mu}[\tau] = \prod_{t=0}^{T} \left[ \prod_{i=L_t}^{L_{t+1}-1}\pi(a_i\mid h_{i,t}) \right]
 \mu(o_{t+1},r_t\mid h_t,a_t)
 \tag{18b}
 \end{equation}
 ```
 
+作用量为 : 
+```math
+\begin{align}
+S^{AR}_{\pi,\mu}[\tau] = - \sum_{t=0}^T \sum_{i=L_t}^{L_{t+1}-1} \left( \log \pi(a_i|h_{i,t}) + \delta_{i,L_{t+1}-1} \log \mu(o_{t+1},r_t | h_t, a_t) \right)
+\end{align}
+```
+
+时刻 $t$ 的传播子就是 :
+```math
+\begin{align}
+f(h_{t+1}, h_t) &= \left[\prod_{i=L_t}^{L_{t+1}-1} \pi(a_i|h_{i,t})\right]\mu(o_{t+1},r_t|h_t,a_t)\\
+\Delta h_t &= [a_t,o_{t+1},r_t] ,~ h_{t+1} = \text{concat}(h_t, \Delta h_t)
+\end{align}
+```
+
 对应测度为 :
 ```math
 \begin{equation}
-\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
-\equiv
-\prod_{t=0}^{T}
-\left[\prod_{i=L_t}^{L_{t+1}-1}da_i\right]
-do_{t+1}\,dr_t
+\mathcal{D}\tau = \prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t \equiv \prod_{t=0}^{T}
+\left[\prod_{i=L_t}^{L_{t+1}-1}da_i\right] do_{t+1}\,dr_t
 \tag{18c}
 \end{equation}
 ```
 
-也就是说，LLM 自回归结构只是把外部一步 $a_t$ 展开成块内 token 积分。积分完以后，外层路径变量仍然是段级动作 $a_t$。
-
-### 2.2. 基础作用量、基础哈密顿量与玻尔兹曼权重
-
-从路径密度出发 : 
-
+因此，强化学习可以在路径积分表象下作出以下物理解释
+- $a_t,o_t,r_t$: 一维时间路径上场的自由度，这里的场就是标量场 (动作场，观测场以及回报场)
+- $\mathcal{D}\tau$: 所有格点上的场的测度
+- $G[\tau]$: 物理观测量
+- $f(h_{t+1},h_t)$: 传播子，但注意由于history-based RL的定义，这里的变化量为序列 $\Delta h_t = h_{t+1}-h_{t}\equiv [a_t, o_{t+1}, r_t]$，而不是场的微小变化量
+- $e^{-S_{\pi,\mu}[\tau]}$: 路径积分的权重，其中 $S_{\pi,\mu}$ 为作用量
+- History-based RL 可以看成一个拥有 $a,o,r$ 三个自由度的复杂的一维单粒子系统，其复杂性体现在基于历史轨迹 $h_t$ 的长程耦合。其耦合并不是简单的 $w_{o_0,a_0,o_1,r_0,\cdot,a_t,o_{t+1},r_t}$ 系数，而是由策略 $\pi$ 以及环境测度 $\mu$ 决定的。
+- 虽然我们把路径密度的负对数 $- \log P_{\pi,\mu}$ 定义为作用量，但是考虑到我们能通过逆温度 $\beta$ 来控制全体耦合的强度，因此可以对作用量进行再定义
 ```math
-\begin{equation}
-P_{\pi,\mu}[\tau]=\prod_{t=0}^{T}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)
-\tag{19}
-\end{equation}
+\begin{align}
+S_{\pi,\mu}[\tau] = \beta H_{\pi,\mu}[\tau],\quad H_{\pi,\mu}[\tau] \equiv - \log P_{\pi,\mu}
+\end{align}
 ```
 
-对路径密度取负对数，得到基础作用量 : 
-
-```math
-\begin{equation}
-S_{\pi,\mu}[\tau]=-\log P_{\pi,\mu}[\tau]=-
-\sum_{t=0}^{T}\log\pi(a_t\mid h_t)-\sum_{t=0}^{T}\log\mu(o_{t+1},r_t\mid a_t,h_t)
-\tag{20}
-\end{equation}
-```
-
-热力学类比中，玻尔兹曼权重写成 $\exp(-\beta H)$。因此基础作用量与基础哈密顿量的关系是 : 
-
-```math
-\begin{equation}
-S_{\pi,\mu}[\tau]=\beta H_0[\tau]
-\tag{21}
-\end{equation}
-```
-
-于是原始路径密度可以写成 : 
-
-```math
-\begin{equation}
-P_{\pi,\mu}[\tau]=\exp(-S_{\pi,\mu}[\tau])=\exp(-\beta H_0[\tau])
-\tag{22}
-\end{equation}
-```
-
-原始 RL 目标变成 : 
-
-```math
-\begin{equation}
-J(\pi)=\int \exp(-\beta H_0[\tau])G[\tau]\prod_{t=0}^{T}da_t\,do_{t+1}\,dr_t
-\tag{23}
-\end{equation}
-```
-
-这里 $G[\tau]$ 是 observable insertion，不是哈密顿量的一部分。
-
-在 LLM 自回归形式下，基础作用量中的策略项展开为 :
-```math
-\begin{equation}
-S_{\pi,\mu}^{\mathrm{AR}}[\tau]=-
-\sum_{t=0}^{T}\sum_{i=L_t}^{L_{t+1}-1}\log\pi(a_i\mid h_{i,t})
--\sum_{t=0}^{T}\log\mu(o_{t+1},r_t\mid h_t,a_t)
-\tag{23a}
-\end{equation}
-```
-
-并且 :
-```math
-\begin{equation}
-S_{\pi,\mu}^{\mathrm{AR}}[\tau]=\beta H_0^{\mathrm{AR}}[\tau],\quad
-P_{\pi,\mu}^{\mathrm{AR}}[\tau]=\exp(-\beta H_0^{\mathrm{AR}}[\tau])
-\tag{23b}
-\end{equation}
-```
-
-这说明 LLM 的 token log-prob 连乘只是 $H_0$ 的策略部分在自回归微步上的展开。
-
-### 2.3. 一维时间方向的单体复杂系统
-
-路径变量可以写成 : 
-
-```math
-\begin{equation}
-x_t=(a_t,o_{t+1},r_t),\quad \tau=(x_0,x_1,\ldots,x_T)
-\tag{24}
-\end{equation}
-```
-
-它是一维时间方向上的路径系统。复杂性来自 history coupling，因为每一步的策略和环境都依赖完整历史 : 
-
-```math
-\begin{equation}
-\pi(a_t\mid h_t),\quad \mu(o_{t+1},r_t\mid a_t,h_t)
-\tag{25}
-\end{equation}
-```
-
-对应基础作用量项为 : 
-
-```math
-\begin{equation}
-S_{\pi,\mu}[\tau]=-
-\sum_{t=0}^{T}\log\pi(a_t\mid h_t)-
-\sum_{t=0}^{T}\log\mu(o_{t+1},r_t\mid a_t,h_t)
-\tag{26}
-\end{equation}
-```
-
-物理图像是 : 
-- RL path integral 是一维时间方向上的复杂单体系统，内部自由度是 action、observation、reward，复杂性来自这些自由度通过历史 $h_t$ 发生长程时间耦合。
-
-对 LLM 来说，这个一维时间方向具有嵌套结构。外层时间 $t$ 是环境 / 工具 / agent 交互步，内层 token 位置 $i$ 是同一外部步内部的自回归微步。于是自由度可写成 :
-```math
-\begin{equation}
-x_t^{\mathrm{AR}}=(a_{L_t},\ldots,a_{L_{t+1}-1},o_{t+1},r_t)
-\tag{26a}
-\end{equation}
-```
-
-其中 :
-```math
-\begin{equation}
-h_{i,t}=(h_t,a_{L_t},\ldots,a_{i-1})
-\tag{26b}
-\end{equation}
-```
-
-所以 LLM path integral 仍然是一维时间路径积分，只是每个外部格点 $t$ 内部又有一段 token 微结构。token 微结构积分完以后，外层仍然回到段级变量 $a_t$。
-
-### 2.4. 折扣因子与 Laplace 正则化
+### 2.2. 折扣因子与 Laplace 正则化
 
 连续时间回报如果写成 : 
 
@@ -476,24 +341,37 @@ G_\gamma[\tau]=\sum_{t=0}^{\infty}\gamma^t r_t
 \end{equation}
 ```
 
-物理图像是 : 
-- discount factor 是时间方向上的 Laplace damping，它把无限未来压成有限有效贡献
-
 ---
 
 ## 3. RL 原定义下的观测量与奖励再采样
 
-从原始 RL 累积回报定义出发，目标是在不改变策略更新器的前提下，扩展观测量 $o_{t+1}$ 和奖励 $r_t$ 的局部采样空间，使模型更好地探索路径。更复杂的做法可以使用真实环境重复采样、world model、reward model、verifier、SMC 或 CEM proposal 等，但是本节不讨论这些复杂的重复采样法，只使用最基本的高斯噪声 proposal。
+从原始 RL 累积回报定义出发，我们可以在不改变策略更新器的前提下，使用重采样的方法来扩展观测量 $o_{t+1}$ 和奖励 $r_t$ 的局部采样空间，使模型更好地探索路径。由环境测度的定义，我们可以把隐变量考虑为对测量以及奖励产生了随机的扰动，这里就拥有了一个随机性。但是在 LLM RL 中，通常情况下观测值以及奖励都是确定的，因此路径的探索取决于策略模型，探索能力受到限制，所以我们更需要为观测量和奖励引入随机扰动，来让 LLM 拥有更大的探索空间。
+- 注意: 某些任务，特别是工具调用等，我们很难或者无法对其观测量 (也就是返回值) 加入随机扰动
+
+更复杂的做法可以使用真实环境重复采样、world model、reward model、verifier、SMC 或 CEM proposal 等，但是本节不讨论这些复杂的重复采样法，只使用最基本的高斯噪声 proposal。
+
+### 3.1. 观测量 $o$ 以及奖励 $r$ 的原始分布
+在第一节，我们讨论了使用 $\delta$ 函数时，随机观测以及奖励可以退化成决定论的取值 (也就是由确定性的物理、数学建模得出)。在这里，我们可以通过 $\delta$ 函数的定义
+```math
+\delta(x-x_0) = \lim_{\sigma\rightarrow 0}\frac{1}{\sqrt{2\pi\sigma^2}}\exp\left( -\frac{(x-x_0)^2}{\sigma^2} \right)
+```
+先取一个极小的 $\sigma$ 把决定扩张论近似成“概率分布”。因此不管是决定论的还是受到随机扰动的观测量以及奖励，我们都拥有一个方差，此时 $o_{t+1}, r_t$ 服从以下分布
+```math
+\begin{equation}
+o_{t+1},r_t \sim \mu(\cdot|h_t,a_t) \quad\text{or}\quad o_{t+1}\sim \mu_O(\cdot|h_t,a_t),~ r_t \sim \mu_R(\cdot|h_t, a_t, o_{t+1})
+\end{equation}
+```
 
 ### 3.1. $o$ 和 $r$ 的高斯噪声再采样 / 重估计
 
-设 $m=1,\ldots,M$ 表示在同一个 $a_t,h_t,o_{t+1},r_t$ 条件下的第 $m$ 次重采样。若使用模拟退火，设 $k=0,1,\ldots,K_{\mathrm{ann}}$ 表示外部退火迭代步，不是路径内部时间步 $t$。第 $k$ 轮使用逆温度 $\beta_k>0$。
+
+设 $m=1,\ldots,M$ 表示在同一个 $a_t,h_t,o_{t+1},r_t$ 条件下的第 $m$ 次重采样。若使用模拟退火，设 $k=0,1,\ldots,K_{\mathrm{ann}}$ 表示外部退火迭代步。第 $k$ 轮使用逆温度 $\beta_k>0$。
 
 先从一维标量变量开始。给定当前值 $x_0$ 和第 $k$ 轮噪声宽度 $s_k>0$，最基本的一维高斯 proposal 定义为 : 
 
 ```math
 \begin{equation}
-q_k(x'\mid x_0)=\frac{1}{\sqrt{2\pi}s_k}\exp\left(-\frac{(x'-x_0)^2}{2s_k^2}\right)
+q_k(x'\mid x_0)=\frac{1}{\sqrt{2\pi s^2_k}}\exp\left(-\frac{(x'-x_0)^2}{2s_k^2}\right)
 \tag{33}
 \end{equation}
 ```
@@ -502,7 +380,7 @@ q_k(x'\mid x_0)=\frac{1}{\sqrt{2\pi}s_k}\exp\left(-\frac{(x'-x_0)^2}{2s_k^2}\rig
 
 ```math
 \begin{equation}
-s_k=\frac{\sigma}{\sqrt{\beta_k}}
+s_k=\frac{\sigma}{\sqrt{\beta_k}}, \sigma^2_k = s^2_k / \beta
 \tag{34}
 \end{equation}
 ```
@@ -511,7 +389,7 @@ s_k=\frac{\sigma}{\sqrt{\beta_k}}
 
 ```math
 \begin{equation}
-q_k(x'\mid x_0)=\frac{\sqrt{\beta_k}}{\sqrt{2\pi}\sigma}\exp\left(-\frac{\beta_k(x'-x_0)^2}{2\sigma^2}\right)
+q_k(x'\mid x_0)=\sqrt{\frac{\beta_k}{2\pi\sigma^2}}\exp\left(-\frac{\beta_k(x'-x_0)^2}{2\sigma^2}\right)
 \tag{35}
 \end{equation}
 ```
