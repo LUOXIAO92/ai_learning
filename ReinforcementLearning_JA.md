@@ -332,7 +332,7 @@ $\mu_O, \mu_R$ の積は環境測度そのものである
 
 - Markov Decision Process formalized RL: 強化学習の定番
   - **マルコフ性 (Markov property )** を満たす必要がある
-  すなわち 新しい状態は現在の状態しか依存しないこと: $P(s_{t+1}|s_t, a_t)$
+  すなわち 新しい状態は現在の状態しか依存しないこと: $s_{t+1} \sim P(\cdot|s_t, a_t)$ or $s_{t+1} = F(s_t, a_t)$
   - $\mathcal{M} = (\mathcal{S}, \mathcal{A}, \mu, r, \gamma, \pi)$
 
 **最適化目標** : 累積報酬を最大にするように方策モデルを調整する. 
@@ -343,7 +343,7 @@ $\mu_O, \mu_R$ の積は環境測度そのものである
 - History-based RL / General RL: 報酬も分布し従うとする
 ```math
 \begin{align*}
-J_{o_0}(\pi_\theta) &= \prod_{t=0}^T \left( \sum_{ a_t \in \mathcal{A}} \sum_{o_{t+1} \in \mathcal{O}} \sum_{r_t \in \mathbb{R}} \pi_\theta(a_t|h_t)\mu(o_{t+1}, r_t|h_t, a_t)\right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
+J_{o_0}(\pi_\theta) &= \sum_{\tau} \left( \prod_{t=0}^T \pi_\theta(a_t|h_t)\mu(o_{t+1}, r_t|h_t, a_t)\right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
 &\equiv \mathbb{E}_{a\sim \pi_\theta, (o,r)\sim\mu} [G_0 | o_0]
 \end{align*}
 ```
@@ -351,7 +351,7 @@ J_{o_0}(\pi_\theta) &= \prod_{t=0}^T \left( \sum_{ a_t \in \mathcal{A}} \sum_{o_
 - Markov Decision Process formalized RL:
 ```math
 \begin{align*}
-J_{s_0}(\pi_\theta) &= \prod_{t=0}^T \left( \sum_{a_t \in \mathcal{A}} \sum_{s_{t+1} \in \mathcal{S}} \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
+J_{s_0}(\pi_\theta) &= \sum_{\tau} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
 &\equiv \mathbb{E}_{a\sim \pi_\theta, s \sim\mu} [G_0 | s_0]
 \end{align*}
 ```
@@ -382,6 +382,32 @@ Q(s,a) = \sum_{s' \in \mathcal{S}} P(s' | s, a) \left[ r(s, a, s') + \gamma V_{\
 # 2. 強化学習の学習手順
 
 ## 2.1 従来の RL
+### 2.1.1. Monte Carlo
+Bellman方程式を使用しなく、最もシンプルな手法である
+- Markov Decision Process formalized RL:
+  1. 失敗例を含んで、軌跡をサンプリングする: $\Tau=\{\tau^1, \cdots, \tau^N\}$
+  2. 各軌跡から累計報酬 $G[\tau^i]$ を集計する
+  3. 累計報酬の期待値を計算 
+  ```math
+  \begin{align}
+  J_{s_0}(\pi_\theta) &= \sum_{\tau} \left( \prod_{t=0}^T \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right) \left(\sum_{s=0}^T \gamma^s r_s \right) \\
+  &\simeq \frac{1}{N} \sum_{i=1}^N \left( \prod_{t=0}^{T^{(i)}} \pi_\theta(a^{(i)}_t|s^{(i)}_t) P(s^{(i)}_{t+1} | s^{(i)}_t, a^{(i)}_t) \right) \left(\sum_{s=0}^{T^{(i)}} \gamma^s r^{(i)}_s \right) \\
+  &= \frac{1}{N} \sum_{i=1}^N G[\tau^i]
+  \end{align}
+  ```
+  4. 方策のパラメータの勾配を計算
+  ```math
+  \begin{align}
+  \nabla_\theta J_{s_0}(\pi_\theta) &= \sum_{\tau \in T} \left[ \sum_{t'=0}^{T} \left( \frac{1}{\pi_\theta(a_{t'}|s_{t'})} \nabla_{\theta}\pi_\theta(a_{t'}|s_{t'}) \right) \prod_{t=0}^{T} \pi_\theta(a_t|s_t) P(s_{t+1} | s_t, a_t) \right] \left(\sum_{s=0}^{T} \gamma^s r_s \right) \\
+  &\simeq \frac{1}{N} \sum_{i=1}^N G[\tau^i] \sum_{t=0}^{T^{(i)}} \nabla_{\theta} \log \pi_\theta(a^{(i)}_{t}|s^{(i)}_{t})
+  \end{align}
+  ```
+  5. 方策を更新 $\pi_\theta \leftarrow \pi_\theta + \eta \nabla_\theta J$ 
+
+- History-based RL:
+  - MDPとほぼ同様で、状態遷移 $P$ を環境測度 $\mu$ に、状態 $s$ を履歴 $h$ に置き換えて良い
+
+### 2.1.2. $V,Q$ を使用する手法
 
 
 ## 2.2 LLM RL
