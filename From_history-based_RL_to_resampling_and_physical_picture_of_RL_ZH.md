@@ -229,7 +229,7 @@ J(\pi)=\int \mathcal{D}\tau ~ e^{-S_{\pi,\mu}[\tau]} G[\tau]
 \end{equation}
 ```
 
-对 LLM 自回归生成，式 (22) 中的 $a_t$ 是一段生成。根据第 1.3 节的约定 :
+对 LLM 自回归生成，根据第 1.3 节的约定 :
 ```math
 \begin{equation}
 da_t\equiv\prod_{i=L_t}^{L_{t+1}-1}da_i,\quad
@@ -350,378 +350,275 @@ G_\gamma[\tau]=\sum_{t=0}^{\infty}\gamma^t r_t
 
 更复杂的做法可以使用真实环境重复采样、world model、reward model、verifier、SMC 或 CEM proposal 等，但是本节不讨论这些复杂的重复采样法，只使用最基本的高斯噪声 proposal。
 
-### 3.1. 观测量 $o$ 以及奖励 $r$ 的原始分布
+### 3.1. 决定论条件下的观测量 $o$ 以及奖励 $r$ 的近似
 在第一节，我们讨论了使用 $\delta$ 函数时，随机观测以及奖励可以退化成决定论的取值 (也就是由确定性的物理、数学建模得出)。在这里，我们可以通过 $\delta$ 函数的定义
 ```math
-\delta(x-x_0) = \lim_{\sigma\rightarrow 0}\frac{1}{\sqrt{2\pi\sigma^2}}\exp\left( -\frac{(x-x_0)^2}{\sigma^2} \right)
+\delta(x-x_0) = \lim_{\sigma\rightarrow 0}\frac{1}{\sqrt{2\pi\sigma^2}}\exp\left( -\frac{(x-x_0)^2}{2\sigma^2} \right)
 ```
-先取一个极小的 $\sigma$ 把决定扩张论近似成“概率分布”。因此不管是决定论的还是受到随机扰动的观测量以及奖励，我们都拥有一个方差，此时 $o_{t+1}, r_t$ 服从以下分布
+先取一个极小的 $\sigma$ 把决定论扩张并且近似成“概率分布”。因此我们可以用极小方差的 proposal 近似零方差 Dirac delta 函数，此时 $o_{t+1}, r_t$ 近似地服从以下分布
 ```math
 \begin{equation}
-o_{t+1},r_t \sim \mu(\cdot|h_t,a_t) \quad\text{or}\quad o_{t+1}\sim \mu_O(\cdot|h_t,a_t),~ r_t \sim \mu_R(\cdot|h_t, a_t, o_{t+1})
+o_{t+1},r_t \sim \mu_\sigma(\cdot|h_t,a_t) \quad\text{or}\quad o_{t+1}\sim \mu_{\sigma_O}(\cdot|h_t,a_t),~ r_t \sim \mu_{\sigma_R}(\cdot|h_t, a_t, o_{t+1})
 \end{equation}
 ```
-
-### 3.1. $o$ 和 $r$ 的高斯噪声再采样 / 重估计
-
-
-设 $m=1,\ldots,M$ 表示在同一个 $a_t,h_t,o_{t+1},r_t$ 条件下的第 $m$ 次重采样。若使用模拟退火，设 $k=0,1,\ldots,K_{\mathrm{ann}}$ 表示外部退火迭代步。第 $k$ 轮使用逆温度 $\beta_k>0$。
-
-先从一维标量变量开始。给定当前值 $x_0$ 和第 $k$ 轮噪声宽度 $s_k>0$，最基本的一维高斯 proposal 定义为 : 
-
+在这里我们选择高斯分布作为近似，并且使用决定论观测量 $o$ 以及奖励 $r$ 作为期望，此时随机过程 $o\rightarrow o', r\rightarrow r'$ 的状态转移概率为
 ```math
-\begin{equation}
-q_k(x'\mid x_0)=\frac{1}{\sqrt{2\pi s^2_k}}\exp\left(-\frac{(x'-x_0)^2}{2s_k^2}\right)
-\tag{33}
-\end{equation}
+\begin{align}
+q(o'|o) = \frac{1}{\sqrt{2\pi\sigma^2_O}}\exp\left( -\frac{(o'-o)^2}{2\sigma^2_O} \right) ,\quad q(r'|r) = \frac{1}{\sqrt{2\pi\sigma^2_R}}\exp\left( -\frac{(r'-r)^2}{2\sigma^2_R} \right)
+\end{align}
 ```
 
-为了让逆温度控制 proposal 的宽度，定义 : 
-
+通过这种近似，我们可以很自然地导入模拟退火法。在这里我们先考虑**标量**的情况，令 $\beta$为逆温度，此时可得
 ```math
-\begin{equation}
-s_k=\frac{\sigma}{\sqrt{\beta_k}}, \sigma^2_k = s^2_k / \beta
-\tag{34}
-\end{equation}
+\begin{align}
+q_{\beta} (x'|x) = \sqrt{\frac{\beta}{2\pi\sigma^2}} \exp\left( - \beta \frac{(x'-x)^2}{2\sigma^2} \right)
+\end{align}
 ```
-
-其中 $\sigma>0$ 是人为指定的基础噪声尺度。代入上式后，一维高斯 proposal 变成 : 
-
+在这里，等效方差为 $\sigma^2_{\text{eff}}(\beta) = \sigma^2 / \beta$，因此在模拟退火中，我们可以通过调节逆温度来决定采样的幅度。我们把原始的近似高斯分布改写成正态分布
 ```math
-\begin{equation}
-q_k(x'\mid x_0)=\sqrt{\frac{\beta_k}{2\pi\sigma^2}}\exp\left(-\frac{\beta_k(x'-x_0)^2}{2\sigma^2}\right)
-\tag{35}
-\end{equation}
+\begin{align}
+q(\xi) = \frac{1}{\sqrt{2\pi}} \exp\left(- \frac{\xi^2}{2} \right), \quad \xi^2 = \beta\frac{(x'-x)^2}{\sigma^2}
+\end{align}
 ```
 
-标准高斯噪声 $\xi^{(m)}$ 的密度为 : 
+此时我们可以做高斯采样，新的变量为 $x' = x + \xi / \sqrt{\beta} ,~ \xi \sim \mathcal{N}(0, \sigma^2)$。采样顺序为: 1. 生成一个服从标准正态分布的随机数; 2. 计算新的 $x'$。
 
+下面我们继续把以上讨论扩张为多维高斯分布的情况，此时 $\bm{x} = (x_1, \cdots, x_d)$，$\Sigma$ 为协方差矩阵并且为正定矩阵
 ```math
-\begin{equation}
-p(\xi^{(m)})=\frac{1}{\sqrt{2\pi}}\exp\left(-\frac{(\xi^{(m)})^2}{2}\right)
-\tag{36}
-\end{equation}
+\begin{align}
+q_{\beta}(\bm{x}'|\bm{x}) = \frac{\beta_k^{d/2}} {(2\pi)^{d/2}|\Sigma|^{1/2}} \exp\left( -\frac{\beta}{2} (\bm{x}'-\bm{x})^T\Sigma^{-1}(\bm{x}'-\bm{x}) \right)
+\end{align}
 ```
 
-令第 $m$ 次重采样值为 : 
+当 $\Sigma$ 的所有特征值都趋近于0时，上式可在 $\beta=1$ 时退化为多维狄拉克函数 $q_{\beta}(\bm{x}'|\bm{x}) \rightarrow \delta^{(d)}(\bm{x}'-\bm{x})$。如果我们需要对决定论向量做模拟退火，可以构建一个协方差矩阵 $\Sigma = \sigma^2 I + \epsilon^2 (U U^{T} - \operatorname{diag}{UU^T})$，$I$ 为单位矩阵，$U$ 为随机实矩阵的归一化矩阵，$\epsilon$ 为非对角成分的微小关联，并且 $0 < \epsilon \ll \sigma$，此时可得到新分布 $\bm{x}' = \bm{x} + \bm{\eta} / \sqrt{\beta},~ \bm{\eta}\sim \mathcal{N}(0, \Sigma)$。
 
-```math
-\begin{equation}
-x^{(m,k)}=x_0+\frac{\sigma}{\sqrt{\beta_k}}\xi^{(m)}
-\tag{37}
-\end{equation}
-```
+注意以上讨论的是对决定论的矢量形式的观测量以及奖励讨论的，也许会偏离**当前的**真实的训练环境，特别是 LLM 的强化学习，但是依然保留该讨论仅作为参考。
 
-由上式可得 : 
-
-```math
-\begin{equation}
-\xi^{(m)}=\frac{\sqrt{\beta_k}}{\sigma}(x^{(m,k)}-x_0)
-\tag{38}
-\end{equation}
-```
-
-因此 $x^{(m,k)}$ 的密度正是以 $x_0$ 为中心、宽度为 $\sigma/\sqrt{\beta_k}$ 的高斯 proposal : 
-
-```math
-\begin{equation}
-q_k(x^{(m,k)}\mid x_0)=\frac{\sqrt{\beta_k}}{\sqrt{2\pi}\sigma}\exp\left(-\frac{\beta_k(x^{(m,k)}-x_0)^2}{2\sigma^2}\right)
-\tag{39}
-\end{equation}
-```
-
-所以小 $\beta_k$ 对应更宽的 proposal，大 $\beta_k$ 对应更窄的 proposal。这就是本节里的模拟退火控制方式。
-
-接下来把一维定义推广到多维观测量。设 $o_{t+1}$ 是 $d_o$ 维观测向量或文本 embedding : 
-
-```math
-\begin{equation}
-o_{t+1}=(o_{t+1,1},o_{t+1,2},\ldots,o_{t+1,d_o})
-\tag{40}
-\end{equation}
-```
-
-重采样后的观测量为 : 
-
-```math
-\begin{equation}
-o'_{t+1}=(o'_{t+1,1},o'_{t+1,2},\ldots,o'_{t+1,d_o})
-\tag{41}
-\end{equation}
-```
-
-引入观测噪声协方差矩阵 $\Sigma_o\in\mathbb R^{d_o\times d_o}$。其中 $\Sigma_{o,j\ell}$ 描述第 $j$ 个维度和第 $\ell$ 个维度之间的噪声相关结构；对角项控制单个维度的噪声强度，非对角项控制不同维度之间的相关扰动。多维高斯 proposal 定义为 : 
-
-```math
-\begin{equation}
-q_k(o'_{t+1}\mid o_{t+1})=
-\frac{\beta_k^{d_o/2}}{(2\pi)^{d_o/2}|\Sigma_o|^{1/2}}
-\exp\left(-\frac{\beta_k}{2}(o'_{t+1}-o_{t+1})^\top\Sigma_o^{-1}(o'_{t+1}-o_{t+1})\right)
-\tag{42}
-\end{equation}
-```
-
-如果使用矩阵 $L_o$ 生成相关高斯噪声，则先定义 : 
-
-```math
-\begin{equation}
-\Sigma_o=L_oL_o^\top
-\tag{43}
-\end{equation}
-```
-
-令标准高斯噪声向量为 : 
-
-```math
-\begin{equation}
-\xi_o^{(m,t)}=(\xi_{o,1}^{(m,t)},\xi_{o,2}^{(m,t)},\ldots,\xi_{o,d_o}^{(m,t)})
-\tag{44}
-\end{equation}
-```
-
-其中每个维度的标准高斯密度为 : 
-
-```math
-\begin{equation}
-p(\xi_{o,j}^{(m,t)})=\frac{1}{\sqrt{2\pi}}\exp\left(-\frac{(\xi_{o,j}^{(m,t)})^2}{2}\right),\quad j=1,\ldots,d_o
-\tag{45}
-\end{equation}
-```
-
-于是观测量重采样式为 : 
-
-```math
-\begin{equation}
-o_{t+1,j}^{(m,k)}=o_{t+1,j}+\frac{1}{\sqrt{\beta_k}}\sum_{\ell=1}^{d_o}L_{o,j\ell}\xi_{o,\ell}^{(m,t)},\quad j=1,\ldots,d_o
-\tag{46}
-\end{equation}
-```
-
-如果不考虑不同维度之间的噪声相关性，可以取 $\Sigma_o=\sigma_o^2I$。这时 $L_o=\sigma_o I$，上式退化成每个维度独立同尺度扰动 : 
-
-```math
-\begin{equation}
-o_{t+1,j}^{(m,k)}=o_{t+1,j}+\frac{\sigma_o}{\sqrt{\beta_k}}\xi_{o,j}^{(m,t)},\quad j=1,\ldots,d_o
-\tag{47}
-\end{equation}
-```
-
-奖励 $r_t$ 通常是标量。如果直接对标量奖励做高斯扰动，设 $\sigma_r>0$ 是奖励的基础噪声尺度，则有 : 
-
-```math
-\begin{equation}
-r_t^{(m,k)}=r_t+\frac{\sigma_r}{\sqrt{\beta_k}}\xi_r^{(m,t)}
-\tag{48}
-\end{equation}
-```
-
-其中 : 
-
-```math
-\begin{equation}
-p(\xi_r^{(m,t)})=\frac{1}{\sqrt{2\pi}}\exp\left(-\frac{(\xi_r^{(m,t)})^2}{2}\right)
-\tag{49}
-\end{equation}
-```
-
-对应的奖励 proposal 为 : 
-
-```math
-\begin{equation}
-q_k(r'_t\mid r_t)=\frac{\sqrt{\beta_k}}{\sqrt{2\pi}\sigma_r}\exp\left(-\frac{\beta_k(r'_t-r_t)^2}{2\sigma_r^2}\right)
-\tag{50}
-\end{equation}
-```
-
-但是，如果只是对 $r_t$ 加零中心高斯噪声，然后做样本平均，平均值会回到原来的 $r_t$ 附近。按样本平均的原定义 : 
-
-```math
-\begin{equation}
-\bar r_t^{(k)}=\frac{1}{M}\sum_{m=1}^{M}r_t^{(m,k)}=r_t+\frac{\sigma_r}{\sqrt{\beta_k}}\left(\frac{1}{M}\sum_{m=1}^{M}\xi_r^{(m,t)}\right)
-\tag{51}
-\end{equation}
-```
-
-当高斯噪声正负大致抵消时 : 
-
-```math
-\begin{equation}
-\frac{1}{M}\sum_{m=1}^{M}\xi_r^{(m,t)}\approx 0
-\tag{52}
-\end{equation}
-```
-
-于是 : 
-
-```math
-\begin{equation}
-\bar r_t^{(k)}\approx r_t
-\tag{53}
-\end{equation}
-```
-
-因此，直接对奖励加噪声主要是鲁棒性扰动。更有意义的做法是先对观测量或观测 hidden 做高斯重采样，再用扰动后的观测重新计算奖励 : 
-
-```math
-\begin{equation}
-r_t^{(m,k)}=R(o_{t+1}^{(m,k)},a_t,h_t)
-\tag{54}
-\end{equation}
-```
-
-对应的局部奖励估计为 : 
-
-```math
-\begin{equation}
-\widehat r_t^{(k)}=\frac{1}{M}\sum_{m=1}^{M}R(o_{t+1}^{(m,k)},a_t,h_t)
-\tag{55}
-\end{equation}
-```
-
-对第 $b$ 条动作路径，第 $m$ 次重采样路径为 : 
-
-```math
-\begin{equation}
-\tau_b^{(m,k)}=(a_{b,0},o_{b,1}^{(m,k)},r_{b,0}^{(m,k)},\ldots,a_{b,T_b},o_{b,T_b+1}^{(m,k)},r_{b,T_b}^{(m,k)})
-\tag{56}
-\end{equation}
-```
-
-第 $m$ 次重采样路径的回报为 : 
-
-```math
-\begin{equation}
-G_b^{(m,k)}=\sum_{t=0}^{T_b}\gamma^t r_{b,t}^{(m,k)}
-\tag{57}
-\end{equation}
-```
-
-用样本平均的原定义得到第 $k$ 轮重采样回报估计 : 
-
-```math
-\begin{equation}
-\widehat G_b^{(k)}=\frac{1}{M}\sum_{m=1}^{M}G_b^{(m,k)}=\frac{1}{M}\sum_{m=1}^{M}\sum_{t=0}^{T_b}\gamma^t r_{b,t}^{(m,k)}
-\tag{58}
-\end{equation}
-```
-
-这就是本节的核心 : 在原始 RL 累积回报定义下，用高斯噪声 proposal 扩展 $o_{t+1}$、$r_t$ 或它们的连续表示，再用样本平均估计更稳定的回报或 advantage。
 
 ### 3.2. PPO / GRPO / GSPO 接入
 
-GRPO / GSPO 可以作为本节的细化方向。它们天然有组内样本结构，因此适合对重采样后的回报做组内统计，但这种方法同样可以服务于 PPO，因为 PPO 也只需要 rollout、reward、advantage 和策略更新比率。
+上一节把决定论条件下的观测量和奖励近似成了带有小方差的有效环境测度。接下来，把这个近似接回原始 RL 更新流程。原始 PPO / GRPO / GSPO 的更新器并不需要改变；变化发生在 rollout 阶段，也就是原来由环境测度 $\mu$ 给出的反馈，现在改成由小方差近似后的有效环境测度 $\mu_\sigma$ 给出。
 
-设 $K_s$ 表示第 $k$ 轮的组内样本数，$b,c$ 表示组内样本编号，$t$ 表示外部轨迹步。对同一个输入 $x$，第 $k$ 轮采样 $K_s$ 条路径 : 
-
-```math
-\begin{equation}
-\tau_1^{(k)},\tau_2^{(k)},\ldots,\tau_{K_s}^{(k)}\sim q_k(\tau\mid x)
-\tag{59}
-\end{equation}
-```
-
-每条路径使用高斯噪声重采样得到回报估计 : 
+原始环境测度下，一条路径由策略和环境共同生成 :
 
 ```math
 \begin{equation}
-\widehat G_b^{(k)}=\frac{1}{M}\sum_{m=1}^{M}\sum_{t=0}^{T_b}\gamma^t r_{b,t}^{(m,k)}
-\tag{60}
+\tau_b
+=
+(a_{b,0},o_{b,1},r_{b,0},a_{b,1},o_{b,2},r_{b,1},\ldots,a_{b,T_b},o_{b,T_b+1},r_{b,T_b})
 \end{equation}
 ```
 
-组内平均与方差为 : 
+其中 $b$ 为样本序号。在高斯近似后的有效环境测度下，对应的路径写成 :
 
 ```math
 \begin{equation}
-\bar G^{(k)}=\frac{1}{K_s}\sum_{b=1}^{K_s}\widehat G_b^{(k)},\quad (\sigma_G^{(k)})^2=\frac{1}{K_s}\sum_{b=1}^{K_s}(\widehat G_b^{(k)}-\bar G^{(k)})^2
-\tag{61}
+\tau'_b
+=
+(a'_{b,0},o'_{b,1},r'_{b,0},a'_{b,1},o'_{b,2},r'_{b,1},\ldots,a'_{b,T_b},o'_{b,T_b+1},r'_{b,T_b})
 \end{equation}
 ```
 
-标准化 advantage 为 : 
+这里的撇号表示这条路径是在扰动后的环境反馈下生成的。也就是说，扰动后的观测量会进入下一步历史 :
 
 ```math
 \begin{equation}
-A_b^{(k)}=\frac{\widehat G_b^{(k)}-\bar G^{(k)}}{\sigma_G^{(k)}+\epsilon}
-\tag{62}
+h'_{b,t+1}=\operatorname{concat}(h'_{b,t},a'_{b,t},o'_{b,t+1},r'_{b,t})
 \end{equation}
 ```
 
-如果要对多维观测量和奖励本身做局部统计，可以写成 : 
+因此下一步动作仍然由策略生成，但条件历史已经变成扰动后的历史 :
 
 ```math
 \begin{equation}
-\bar o_{t+1}^{(k)}=\frac{1}{K_sM}\sum_{b=1}^{K_s}\sum_{m=1}^{M}o_{b,t+1}^{(m,k)},\quad \bar r_t^{(k)}=\frac{1}{K_sM}\sum_{b=1}^{K_s}\sum_{m=1}^{M}r_{b,t}^{(m,k)}
-\tag{63}
+a'_{b,t}\sim \pi_\theta(\cdot\mid h'_{b,t})
 \end{equation}
 ```
 
-对应的观测量散布矩阵与奖励方差为 : 
+在标量近似下，观测量和奖励的扰动可以写成 :
+
+```math
+\begin{align}
+o'_{b,t+1} &= o_{b,t+1} + \sigma_O\xi_{O,b,t}, \quad \xi_{O,b,t} \sim \mathcal N(0,1) \\
+r'_{b,t} &= r_{b,t} + \sigma_R\xi_{R,b,t}, \quad \xi_{R,b,t} \sim \mathcal N(0,1)
+\end{align}
+```
+
+如果奖励由扰动后的观测量重新计算，则写成 :
 
 ```math
 \begin{equation}
-S_{o,t+1}^{(k)}=\frac{1}{K_sM}\sum_{b=1}^{K_s}\sum_{m=1}^{M}(o_{b,t+1}^{(m,k)}-\bar o_{t+1}^{(k)})(o_{b,t+1}^{(m,k)}-\bar o_{t+1}^{(k)})^\top,
-\quad
-(s_r^{(k)})^2=\frac{1}{K_sM}\sum_{b=1}^{K_s}\sum_{m=1}^{M}(r_{b,t}^{(m,k)}-\bar r_t^{(k)})^2
-\tag{64}
+r'_{b,t} = R(o'_{b,t+1},a'_{b,t},h'_{b,t})
 \end{equation}
 ```
 
-这里的 $S_{o,t+1}^{(k)}$ 和 $s_r^{(k)}$ 是组内统计得到的反馈宽度，不是 proposal 里的噪声矩阵 $\Sigma_o$ 和基础奖励噪声尺度 $\sigma_r$。方差或散布矩阵变小可以解释为反馈估计趋于稳定，或者当前策略进入某个更稳定的局部区域。
-
-GSPO 可以看成把整条生成序列作为采样单位 : 
+这样得到的路径回报为 :
 
 ```math
 \begin{equation}
-\tau_b=(a_{b,0},o_{b,1},r_{b,0},\ldots,a_{b,T_b},o_{b,T_b+1},r_{b,T_b})
-\tag{65}
+G[\tau'_b] = \sum_{t=0}^{T_b} \gamma^t r'_{b,t}
 \end{equation}
 ```
 
-如果模型动作、工具返回、环境观测和奖励文本都混在同一个 sequence 中，sequence-level 采样会近似把 $a$ 和 $o$ 混在一起采样。更合理的因果分解是 : 
+如果使用第 1.3 节中的 LLM 自回归回报形式，则可以写成 :
 
 ```math
 \begin{equation}
-q(\tau)=q_a(a_{0:T})q_o(o_{1:T+1}\mid a_{0:T},h_{0:T})q_r(r_{0:T}\mid a_{0:T},o_{1:T+1},h_{0:T})
-\tag{66}
+G[\tau'_b] = \sum_{t=0}^{T_b} \sum_{i=L_t}^{L_{t+1}-1} \gamma^t r'_{b,i,t}
 \end{equation}
 ```
 
-如果用 hidden 作为动作 : 
+其中 $r'_{b,i,t}$ 是扰动反馈下分配到第 $t$ 个外部步内部第 $i$ 个 token 的训练回报。若使用 token 级回报和阶段性回报的分解，则有 :
 
 ```math
 \begin{equation}
-q(\tau)=q_z(z_{0:T})q_o(o_{1:T+1}\mid z_{0:T},h_{0:T})q_r(r_{0:T}\mid z_{0:T},o_{1:T+1},h_{0:T})
-\tag{67}
+r'_{b,i,t} = \omega^{i-L_t}R(h'_{b,i,t},a'_{b,i}) + \delta_{i,L_{t+1}-1}\phi(h'_{b,t},a'_{b,t},o'_{b,t+1})
 \end{equation}
 ```
 
-意义 : 
-- 扩展观测量和奖励反馈空间
-- GRPO / GSPO 的组内统计可以更自然地估计 $G$、advantage、$o$ 和 $r$ 的稳定性
-- PPO 也可以使用同样的 $o,r$ 再采样数据，只是后续策略更新器不同
+从这里开始，为了表达简便，我们把 $'$ 号省略，从这里往后的被扰动过的量均用 $h, a, r, o$ 等原符号表示。PPO 接入时，扰动路径 $\tau_b$ 给出新的 return 和 advantage。设扰动路径上的 advantage 为 $A_{b,i,t}$，
+```math
+\begin{align}
+A_{b,i,t} &= Q(h_{b,i,t},a_{b,i}) - V(h_{b,i,t}) \\
+Q(h_{b,i,t},a_{b,i}) &\simeq \widehat{G}_{b,i,t} = \sum_{j=i}^{L_{t+1}-1} r_{b,j,t} + \sum_{s=t+1}^{T} \gamma^{s-t} \sum_{j=L_s}^{L_{s+1}-1} r_{b,j,s} \\
+\end{align}
+```
+
+
+则策略比率仍然按照当前策略和旧策略在同一动作上的概率比来计算 :
+
+```math
+\begin{equation}
+\rho_{b,t}(\theta) = \frac{ \pi_\theta(a_{b,t}\mid h_{b,t}) }{ \pi_{\theta_{\mathrm{old}}}(a_{b,t}\mid h_{b,t}) }
+\end{equation}
+```
+
+于是 PPO 的 clipped objective 可以写成 :
+
+```math
+\begin{equation}
+L_{\mathrm{PPO}} = \mathbb E_{b,t} \left[ \min \left( \rho_{b,t}(\theta)A_{b,t}, \operatorname{clip}(\rho_{b,t}(\theta),1-\epsilon,1+\epsilon)A_{b,t} \right) \right]
+\end{equation}
+```
+
+对 LLM 自回归生成，粗粒度动作 $a_{b,t}$ 是一段 token 序列，因此策略比率需要展开成 token 级概率比的连乘 :
+
+```math
+\begin{equation}
+\rho_{b,t}^{\mathrm{AR}}(\theta) = \prod_{i=L_t}^{L_{t+1}-1} \frac{ \pi_\theta(a_{b,i}\mid h_{b,i,t}) }{ \pi_{\theta_{\mathrm{old}}}(a_{b,i}\mid h_{b,i,t}) }
+\end{equation}
+```
+
+等价地，可以写成 log-ratio 的求和形式 :
+
+```math
+\begin{equation}
+\log\rho_{b,t}^{\mathrm{AR}}(\theta)=\sum_{i=L_t}^{L_{t+1}-1}\left[\log\pi_\theta(a_{b,i}\mid h_{b,i,t})-\log\pi_{\theta_{\mathrm{old}}}(a_{b,i}\mid h_{b,i,t})\right]
+\end{equation}
+```
+
+GRPO / GSPO 的接入方式也可以沿用这个结构。对同一个输入 $x$，策略生成一组扰动反馈下的路径 :
+
+```math
+\begin{equation}
+\tau_1,\tau_2,\ldots,\tau_{K_s}
+\end{equation}
+```
+
+每条路径都有自己的回报 :
+
+```math
+\begin{equation}
+G_b = G[\tau_b], \quad b=1, \ldots, K_s
+\end{equation}
+```
+
+组内平均和方差为 :
+
+```math
+\begin{equation} \bar G = \frac{1}{K_s} \sum_{b=1}^{K_s}G_b, \quad (\sigma_G)^2 = \frac{1}{K_s} \sum_{b=1}^{K_s} (G_b-\bar G)^2
+\end{equation}
+```
+
+于是组内标准化 advantage 为 :
+
+```math
+\begin{equation}
+A_b = \frac{G_b-\bar G}{\sigma_G+\epsilon}
+\end{equation}
+```
+
+GSPO 可以进一步把整条生成序列作为采样单位。此时每条样本的回报 $G_b$ 由完整序列路径 $\tau_b$ 给出，而策略更新仍然通过序列中各 token 的 log-prob 或 log-ratio 作用到模型参数上。若把第 $b$ 条序列内部的 token 展开，则对应的序列级 log-ratio 为 :
+
+```math
+\begin{equation} \log\rho_b^{\mathrm{seq}}(\theta) = \sum_{t=0}^{T_b} \sum_{i=L_t}^{L_{t+1}-1} \left[ \log\pi_\theta(a_{b,i}\mid h_{b,i,t}) - \log\pi_{\theta_{\mathrm{old}}}(a_{b,i}\mid h_{b,i,t}) \right]
+\end{equation}
+```
+
+因此，高斯近似后的环境反馈可以直接接入 PPO / GRPO / GSPO。它改变的是 rollout 路径上的观测量、奖励和由此得到的回报，而策略更新仍然使用原有的 ratio、advantage、clipping 或 group normalization 结构。
 
 ### 3.3. 模拟退火
 
-模拟退火在本节中用于调度高斯噪声 proposal。第 $k$ 轮的逆温度 $\beta_k$ 通过第 3.1 节中的高斯 proposal 控制噪声宽度。观测量 proposal 的有效协方差和奖励 proposal 的有效方差为 : 
+上一节只是把决定论的观测量和奖励扩张成小方差高斯 proposal。接下来引入模拟退火，用温度调度器来控制这个 proposal 的扰动幅度。这里的模拟退火不是修改 decoder temperature，而是作用在观测量和奖励的高斯扰动上，用来控制 rollout 在反馈空间中的探索宽度。
+
+令第 $k$ 轮的逆温度为
 
 ```math
 \begin{equation}
-\Sigma_{o,k}=\frac{1}{\beta_k}\Sigma_o,\quad s_{r,k}^2=\frac{\sigma_r^2}{\beta_k}
-\tag{68}
+\beta_k=\mathcal B(k),\quad \beta_k>0
 \end{equation}
 ```
 
-其中逆温度递增 : 
+其中 $B(k)$ 是人为指定的退火调度器。对标量变量 $x$，第 $k$ 轮的高斯 proposal 可以写成 :
 
 ```math
 \begin{equation}
-\beta_0<\beta_1<\cdots<\beta_{K_{\mathrm{ann}}}
-\tag{69}
+q_{\beta_k}(x'\mid x) = \sqrt{\frac{\beta_k}{2\pi\sigma^2}} \exp\left( -\frac{\beta_k(x'-x)^2}{2\sigma^2} \right)
 \end{equation}
 ```
 
-小 $\beta_k$ 对应早期更宽的高斯噪声 proposal，大 $\beta_k$ 对应后期更窄、更保守的反馈估计。这里的 $\beta_k$ 是模拟退火调度参数，用于解释采样宽度和反馈涨落，不是 decoder temperature。
+对应采样形式为 :
+
+```math
+\begin{align}
+\xi_k &\sim \mathcal N(0,1) \\
+x^{(k)} &= x+\frac{\sigma}{\sqrt{\beta_k}}\xi_k
+\end{align}
+```
+
+因此有效方差为 :
+
+```math
+\begin{equation}
+\sigma_{\mathrm{eff}}^2(k) = \frac{\sigma^2}{\beta_k}
+\end{equation}
+```
+
+所以 $\beta_k$ 越小，proposal 越宽，rollout 在观测量和奖励空间中的偏离越大； $\beta_k$ 越大，proposal 越窄，路径越接近原始决定论反馈。若使用温度 $T_k$ 而不是逆温度，则有 :
+
+```math
+\begin{equation}
+T_k=\frac{1}{\beta_k}, \quad \sigma_{\mathrm{eff}}^2(k)=\sigma^2T_k
+\end{equation}
+```
+
+对多维变量 $\bm{x}$，若协方差矩阵为 $\Sigma$，则第 $k$ 轮的退火 proposal 为 :
+
+```math
+\begin{equation}
+q_{\beta_k}(\bm{x}'\mid\bm{x}) = \frac{\beta_k^{d/2}} {(2\pi)^{d/2}|\Sigma|^{1/2}} \exp\left( -\frac{\beta_k}{2} (\bm{x}'-\bm{x})^T\Sigma^{-1}(\bm{x}'-\bm{x}) \right)
+\end{equation}
+```
+
+对应有效协方差为 :
+
+```math
+\begin{equation}
+\Sigma_{\mathrm{eff}}(k) = \frac{1}{\beta_k}\Sigma
+\end{equation}
+```
+
+因此，模拟退火的作用可以概括为 : 固定基础高斯 proposal 的形状，再用调度器 $\mathcal{B(k)}$ 控制其整体尺度。若采用单调冷却，则可以让早期 rollout 有更大的反馈扰动，后期逐渐收缩到原始反馈附近；若采用循环升温和降温，则可以在局部收缩后重新放大扰动，用来模拟淬炼过程并增加逃出局部区域的机会。
 
 ### 3.4. 统计力学解释
 
@@ -1813,3 +1710,4 @@ S_{\mathrm{Gibbs}}^{\mathrm{AR}}[\tau]=
 - temporal RG 可以把长时间路径压缩成宏观路径，但模型必须支持 compressed token / hidden macro-action，否则压缩只是摘要，不是有效自由度。
 - LLM 的第一层粗粒化是 token $i$ 到外部 step $t$ 的段级动作 $a_t$。
 - 如果进一步粗粒化，应区分原始路径作用量 $S_0$ 和 Gibbs tilted 作用量 $S_{\mathrm{Gibbs}}$。
+
