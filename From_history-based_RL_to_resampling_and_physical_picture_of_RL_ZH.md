@@ -650,14 +650,7 @@ r'_t &= \mathcal E_r(r_t;m_r,\xi_r)
 得到候选路径后，用带源项作用量比较当前路径和候选路径。Metropolis-Hastings 接受率为
 ```math
 \begin{aligned}
-A_k(\tau\rightarrow\tau')
-=
-\min\left(
-1,
-\exp\left[-(S_\eta[\tau']-S_\eta[\tau])\right]
-\frac{q_{\mathrm{prop}}(\tau\mid\tau')}
-{q_{\mathrm{prop}}(\tau'\mid\tau)}
-\right)
+A_k(\tau\rightarrow\tau') = \min\left( 1, \exp\left[-(S_\eta[\tau']-S_\eta[\tau])\right] \frac{q_{\mathrm{prop}}(\tau\mid\tau')} {q_{\mathrm{prop}}(\tau'\mid\tau)} \right)
 \end{aligned}
 ```
 
@@ -800,4 +793,4 @@ S_0^{\mathrm{AR}}[\tau] =- \sum_{t=0}^{T}\sum_{i=L_t}^{L_{t+1}-1}\log\pi(a_i\mid
 \sigma_1\approx\sigma_2\approx\cdots\approx\sigma_m\quad\Longrightarrow\quad m\rightarrow\chi\text{ 的截断会造成强信息损失}
 ```
 
-**注意**: 这个“重整化”仅仅是在讨论token层面的压缩，而不是在做真正的“语义信息重整化”。真正的重整化指的是，对信息进行粗粒化后，能够在某个尺度下产生“语义不变量”。作者认为目前的各种token压缩技术都是基于可训练的权重对信息选择压缩，重整化
+**注意**: 这个“重整化”仅仅是在讨论 token 层面的压缩，而不是在做真正的“语义信息重整化”。真正的重整化指的是，对信息进行粗粒化后，能够在某个尺度下产生“语义不变量”。作者认为目前的各种 token 压缩技术都是基于可训练的权重对信息选择压缩，这个并不是真正的重整化，因为这种压缩无法保证也没有证据证明可以产生某种不变量，或者说 RG 稳定点。
