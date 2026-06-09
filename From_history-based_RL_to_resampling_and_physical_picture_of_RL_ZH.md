@@ -17,10 +17,8 @@ RL 与物理的共同基础是 :
 
 从最原始的形式开始。交互历史为 : 
 ```math
-\begin{equation}
 h_t=(o_0,a_0,r_0,o_1,a_1,r_1,\ldots,a_{t-1},r_{t-1},o_t)
 \tag{1}
-\end{equation}
 ```
 
 策略为 $\pi(a_t\mid h_t)$，环境条件密度为 $\mu(o_{t+1},r_t\mid a_t,h_t)$。有限时间 $T$ 内，整条轨迹的期望回报可以写成 : 
