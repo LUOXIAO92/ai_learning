@@ -626,23 +626,6 @@ q_\eta[\tau] \propto \exp\left( - \beta H_0[\tau] + \eta F[\tau] \right)
 
 ### 4.3. MCMC 路径采样
 
-给定当前路径 $\tau$，从当前路径生成候选路径 $\tau'\sim q_{\mathrm{prop}}(\tau'\mid\tau)$
-
-Metropolis-Hastings 接受率为如下
-```math
-A_k(\tau\rightarrow\tau') = \min\left(1, \exp\left[ -(S[\tau']-S[\tau]) \right] \frac{q_{\mathrm{prop}}(\tau\mid\tau')}{q_{\mathrm{prop}}(\tau'\mid\tau)} \right)
-```
-
-候选路径如果有效作用量更低，就更容易被接受；即使当前路径陷入某个局部最优，也仍然有概率接受一个暂时更差但可能通向更好区域的路径。这就是 MCMC 在路径空间里逃出局部极值的意义。
-
-### 4.4. Langevin 路径采样
-Langevin 法由于使用到对作用的微分，所以适合用 hidden 来代作为动作的替离散 token ，例如 $\tau = [o_0, z_0, r_0, o_1, \cdots, o_T, z_T, r_T, o_{T+1}],~ z_t = [z_{L_t}, \cdots z_{L_{t+1}-1}]$。此时可以对路径中的连续自由度做 Langevin 更新
-```math
-z^{(\ell+1)} = z^{(k)} - \epsilon \nabla_{z^{(k)}} S_\eta[\tau_{z^{(k)}}] + \sqrt{2\epsilon} \xi_k,\quad \xi_k \sim \mathcal{N}(0,I)
-```
-
-### 4.3. MCMC 路径采样
-
 给定当前路径 $\tau$ 时，MCMC 的候选路径不能理解成对整条已经生成好的路径做任意扰动。由于 History-based RL 的路径具有因果结构，后面的观测量和回报依赖前面的历史与动作。如果直接改掉某个动作，却保留后面的观测量和回报，那么后半段很可能已经不是新动作下的合法反馈。因此，候选路径 $\tau'$ 必须由合法 proposal 生成。
 
 这里的 proposal 可以只扰动动作前缀，也可以同时扰动动作、允许扰动的观测量以及 soft 回报。只扰动观测量或回报也可以，但如果这些字段对模型后续决策不重要，模型可能继续生成同样的动作，路径分支不会发生明显变化。因此更一般地，候选路径 proposal 可以写成联合形式
