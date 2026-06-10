@@ -68,7 +68,7 @@ J(\pi)=\int\left[\prod_{t=0}^{T}\pi(a_t\mid h_t)\,da_t\right]\left[\sum_{s=0}^{T
 - 如果策略也决定论，整条路径坍缩成单条路径
 
 ### 1.2. 有限时域 (finite horizon)、有限奖励 (reward clipping)
-为了防止奖励发散，除了把折扣设为 $\gamma<0$ 之外，还可以
+为了防止奖励发散，除了把折扣设为 $0<\gamma\leq 1$ 之外，还可以
 - 限制最大路径长度 $T\le T_{\max}$，路径积分只在有限时间区间上进行 (截断) : 
 ```math
 J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da_t\,do_{t+1}\,dr_t\right]\left(\sum_{s=0}^{T_{\max}}\gamma^s r_s\right)
@@ -475,17 +475,17 @@ H_{\mathrm{resampled}}(\tau^{(k)}\mid\tau)=H_o(\tau^{(k)}\mid\tau)+H_r(\tau^{(k)
 
 综上原始路径与重采样路径的联合权重为
 ```math
-P_k(\tau,\tau^{(k)})\propto \exp\left(-\beta H_0[\tau]-\beta_k H_{\mathrm{res}}(\tau^{(k)}\mid\tau)\right)
+P_k(\tau,\tau^{(k)})\propto \exp\left(-\beta H_0[\tau]-\beta_k H_{\mathrm{resampled}}(\tau^{(k)}\mid\tau)\right)
 ```
 
 因此经过采样增强后的作用量为 : 
 
 ```math
-S_{\mathrm{augmented}}^{(k)}[\tau,\tau^{(k)}]=\beta H_0[\tau]+\beta_k H_{\mathrm{res}}(\tau^{(k)}\mid\tau)
+S_{\mathrm{augmented}}^{(k)}[\tau,\tau^{(k)}]=\beta H_0[\tau]+\beta_k H_{\mathrm{resampled}}(\tau^{(k)}\mid\tau)
 ```
 
 此时我们可以做这样的统计力学解释
-- 原始路径由基础哈密顿量 $H_0[\tau]$ 加权，在这条路径附近的观测量和奖励重采样由局部扰动哈密顿量 $H_{\mathrm{res}}$ 产生热涨落
+- 原始路径由基础哈密顿量 $H_0[\tau]$ 加权，在这条路径附近的观测量和奖励重采样由局部扰动哈密顿量 $H_{\mathrm{resampled}}$ 产生热涨落
 - $\beta_k$ 控制局部涨落强度。小 $\beta_k$ 相当于局部高温，重采样路径在原始路径附近有更大的热涨落；后期大 $\beta_k$ 相当于局部低温，重采样路径逐渐收缩到原始观测和奖励附近
 
 ### 3.5. 相关研究
@@ -570,7 +570,7 @@ G[\tau] &= \sum_{t=0}^T \gamma^t r_{t}
 \end{aligned}
 ```
 
-此时因此，强化学习可以在路径积分表象下作出以下物理解释
+此时，强化学习可以在路径积分表象下作出以下物理解释
 - $a_t,o_t,r_t$: 一维时间路径上场的自由度，这里的场就是标量场 (动作场，观测场以及回报场)
 - $\mathcal{D}\tau$: 所有格点上的场的测度
 - $G[\tau]$: 物理观测量
@@ -588,7 +588,7 @@ Z[\eta] = \int \mathcal{D}\tau ~ e^{-S_0[\tau] + \eta F[\tau]}
 ```math
 \begin{aligned}
 \frac{\partial}{\partial \eta} \log Z[\eta] &= \frac{1}{Z[\eta]} \int \mathcal{D}\tau ~ e^{-S_0[\tau] + \eta F[\tau]} F[\tau] = \mathbb{E}_\eta [F[\tau]] \\
-\frac{\partial^2}{\partial^2 \eta} \frac{1}{Z[\eta]} &= \text{Var}_\eta [F[\tau]]
+\frac{\partial^2}{\partial^2 \eta} \log Z[\eta] &= \text{Var}_\eta [F[\tau]]
 \end{aligned}
 ```
 当 $\eta = 0$ 时可得到原始作用量下的观测量期望值与方差。在 RL 中我们可以把观测量作为源项，并且还可以进一步引入惩罚项，比如长度惩罚、KL惩罚等
@@ -598,7 +598,7 @@ F[\tau; \lambda_G, \lambda_N, \lambda_{KL}] = \lambda_G G[\tau] - \lambda_N N[\t
 在这里KL惩罚可选择
 - 严格KL散度(完整分布)
 ```math
-K[\tau] = \sum_{t=0}^T \sum_{i=L_{t}}^{L_{t+1}-1} \int d\tilde{a}_i \log \pi(\tilde{a}_i|h_{i,t}) \log \frac{\pi(\tilde{a}_i|h_{i,t})}{\pi_\mathrm{ref}(\tilde{a}_i|h_{i,t})}
+K[\tau] = \sum_{t=0}^T \sum_{i=L_{t}}^{L_{t+1}-1} \int d\tilde{a}_i ~ \pi(\tilde{a}_i|h_{i,t}) \log \frac{\pi(\tilde{a}_i|h_{i,t})}{\pi_\mathrm{ref}(\tilde{a}_i|h_{i,t})}
 ```
 - 采样KL散度(只看被采样的)
 ```math

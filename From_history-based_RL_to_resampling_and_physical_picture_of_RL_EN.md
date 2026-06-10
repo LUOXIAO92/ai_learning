@@ -68,7 +68,7 @@ This means:
 - if the policy is also deterministic, the whole path collapses to a single path
 
 ### 1.2. Finite Horizon, Finite Reward
-To prevent reward divergence, besides setting the discount to $\gamma<0$, we can also
+To prevent reward divergence, besides setting the discount to $0<\gamma\leq 1$, we can also
 - limit the maximum path length $T\le T_{\max}$, so that the path integral runs only on a finite time interval:
 ```math
 J(\pi)=\int\left[\prod_{t=0}^{T_{\max}}\pi(a_t\mid h_t)\mu(o_{t+1},r_t\mid a_t,h_t)\,da_t\,do_{t+1}\,dr_t\right]\left(\sum_{s=0}^{T_{\max}}\gamma^s r_s\right)
@@ -475,17 +475,17 @@ If reward is not noised directly but recomputed from the perturbed observation, 
 
 The joint weight of the original path and the resampled path is therefore
 ```math
-P_k(\tau,\tau^{(k)})\propto \exp\left(-\beta H_0[\tau]-\beta_k H_{\mathrm{res}}(\tau^{(k)}\mid\tau)\right)
+P_k(\tau,\tau^{(k)})\propto \exp\left(-\beta H_0[\tau]-\beta_k H_{\mathrm{resampled}}(\tau^{(k)}\mid\tau)\right)
 ```
 
 So the sampling-augmented action is
 
 ```math
-S_{\mathrm{augmented}}^{(k)}[\tau,\tau^{(k)}]=\beta H_0[\tau]+\beta_k H_{\mathrm{res}}(\tau^{(k)}\mid\tau)
+S_{\mathrm{augmented}}^{(k)}[\tau,\tau^{(k)}]=\beta H_0[\tau]+\beta_k H_{\mathrm{resampled}}(\tau^{(k)}\mid\tau)
 ```
 
 This gives the following statistical-mechanical interpretation:
-- the base Hamiltonian $H_0[\tau]$ weights the original path, and observation and reward resampling near this path produces thermal fluctuations through the local perturbation Hamiltonian $H_{\mathrm{res}}$
+- the base Hamiltonian $H_0[\tau]$ weights the original path, and observation and reward resampling near this path produces thermal fluctuations through the local perturbation Hamiltonian $H_{\mathrm{resampled}}$
 - $\beta_k$ controls the strength of local fluctuations. Small $\beta_k$ corresponds to local high temperature, so the resampled path has larger thermal fluctuations near the original path. Large $\beta_k$ later corresponds to local low temperature, so the resampled path shrinks toward the original observations and rewards
 
 ### 3.5. Related Work
@@ -588,7 +588,7 @@ Differentiating with respect to the source coefficient gives
 ```math
 \begin{aligned}
 \frac{\partial}{\partial \eta} \log Z[\eta] &= \frac{1}{Z[\eta]} \int \mathcal{D}\tau ~ e^{-S_0[\tau] + \eta F[\tau]} F[\tau] = \mathbb{E}_\eta [F[\tau]] \\
-\frac{\partial^2}{\partial^2 \eta} \frac{1}{Z[\eta]} &= \text{Var}_\eta [F[\tau]]
+\frac{\partial^2}{\partial^2 \eta} \log Z[\eta] &= \text{Var}_\eta [F[\tau]]
 \end{aligned}
 ```
 When $\eta = 0$, this gives the observable expectation and variance under the original action. In RL, we can use the observable as the source term and further introduce penalty terms, such as length penalties and KL penalties:
@@ -598,7 +598,7 @@ F[\tau; \lambda_G, \lambda_N, \lambda_{KL}] = \lambda_G G[\tau] - \lambda_N N[\t
 For the KL penalty, we can choose
 - strict KL divergence, using the full distribution:
 ```math
-K[\tau] = \sum_{t=0}^T \sum_{i=L_{t}}^{L_{t+1}-1} \int d\tilde{a}_i \log \pi(\tilde{a}_i|h_{i,t}) \log \frac{\pi(\tilde{a}_i|h_{i,t})}{\pi_\mathrm{ref}(\tilde{a}_i|h_{i,t})}
+K[\tau] = \sum_{t=0}^T \sum_{i=L_{t}}^{L_{t+1}-1} \int d\tilde{a}_i ~ \pi(\tilde{a}_i|h_{i,t}) \log \frac{\pi(\tilde{a}_i|h_{i,t})}{\pi_\mathrm{ref}(\tilde{a}_i|h_{i,t})}
 ```
 - sampled KL divergence, using only sampled actions:
 ```math
