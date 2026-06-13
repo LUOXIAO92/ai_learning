@@ -8,7 +8,7 @@ This text develops a **physical picture** for RL. It does not try to rewrite RL 
 
 RL and physics share two basic ingredients:
 - history-based RL can be written as a path integral along a one-dimensional time direction
-- the return $G[\tau]$ in the original expectation is an observable insertion on the path
+- the return $G[\tau]$ in the original expectation is an observable on the path
 
 ---
 
